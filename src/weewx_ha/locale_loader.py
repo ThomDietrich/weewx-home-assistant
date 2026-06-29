@@ -37,12 +37,27 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
     result = deepcopy(base)
 
     for key, value in overlay.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+        # Reconcile int vs. str keys: YAML enum maps use integer keys (e.g. `0:`)
+        # while config overrides arrive from ConfigObj with string keys (`"0"`).
+        # Without this, an override would be appended instead of replacing the
+        # base entry, silently no-op'ing enum overrides.
+        merge_key = key
+        if key not in result:
+            if isinstance(key, str) and key.lstrip("-").isdigit() and int(key) in result:
+                merge_key = int(key)
+            elif isinstance(key, int) and str(key) in result:
+                merge_key = str(key)
+
+        if (
+            merge_key in result
+            and isinstance(result[merge_key], dict)
+            and isinstance(value, dict)
+        ):
             # Recursively merge nested dictionaries
-            result[key] = _deep_merge(result[key], value)
+            result[merge_key] = _deep_merge(result[merge_key], value)
         else:
             # Use overlay value
-            result[key] = deepcopy(value)
+            result[merge_key] = deepcopy(value)
 
     return result
 
