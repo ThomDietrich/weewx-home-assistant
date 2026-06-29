@@ -6,7 +6,7 @@ ET:
   metadata:
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
-    name: "Evapotranspiration"
+    name: "Interval Evapotranspiration"
 
 THSW:
   metadata:
@@ -139,14 +139,14 @@ dayET:
   metadata:
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
-    name: "Day Evapotranspiration"
+    name: "Daily Evapotranspiration"
     state_class: "total_increasing"
 
 dayRain:
   metadata:
     device_class: "precipitation"
     icon: "mdi:cup-water"
-    name: "Day Rainfall"
+    name: "Daily Rainfall"
     state_class: "total_increasing"
 
 daySunshineDur:
@@ -372,7 +372,7 @@ monthET:
   metadata:
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
-    name: "Month Evapotranspiration"
+    name: "Monthly Evapotranspiration"
     state_class: "total_increasing"
 
 monthRain:
@@ -496,7 +496,7 @@ rain:
   metadata:
     device_class: "precipitation"
     icon: "mdi:cup-water"
-    name: "Rainfall"
+    name: "Interval Rainfall"
 
 rain24:
   metadata:
@@ -785,7 +785,7 @@ yearET:
   metadata:
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
-    name: "Year Evapotranspiration"
+    name: "Yearly Evapotranspiration"
     state_class: "total_increasing"
 
 yearRain:
