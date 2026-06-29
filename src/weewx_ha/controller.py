@@ -186,6 +186,7 @@ class Controller(StdService):
         if (
             msg.topic == f"{self.config.discovery_topic_prefix}/status"
             and msg.payload == b"online"
+            and getattr(self, "config_publisher", None) is not None
         ):
             future = self.executor.submit(self.config_publisher.publish_discovery)
             future.add_done_callback(self.check_future_errors)

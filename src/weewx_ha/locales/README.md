@@ -84,8 +84,9 @@ Defines enum mappings for sensors with `device_class: enum`:
 Defines unit metadata for different measurement units:
 
 - `unit_of_measurement`: The unit symbol (e.g., "°C", "m/s")
-- `value_template`: Jinja2 template for rounding (e.g.,
-  "{{ value | round(1) }}")
+- `suggested_display_precision`: number of decimal places Home Assistant shows
+  (e.g., 1). The raw, full-precision value is forwarded; rounding is
+  display-only.
 
 ### sensors.yaml ###
 
