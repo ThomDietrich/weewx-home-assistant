@@ -501,7 +501,6 @@ rain24:
     device_class: "precipitation"
     icon: "mdi:cup-water"
     name: "24-Hour Rainfall"
-    state_class: "measurement"
 
 rainDur:
   metadata:
