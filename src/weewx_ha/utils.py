@@ -152,7 +152,9 @@ def get_key_config(weewx_key: str) -> dict[str, Any]:
     # First, attempt an exact match for the key
     config = key_config_dict.get(weewx_key)
     if config:
-        return config
+        # Return a deep copy so callers can mutate the result without
+        # corrupting the shared, lazily-cached KEY_CONFIG.
+        return deepcopy(config)
 
     # Next, remove numeric suffix to check for a base key match
     match = re.match(r"(.*?)(\d+)$", weewx_key)
@@ -198,11 +200,21 @@ def get_key_config(weewx_key: str) -> dict[str, Any]:
     return guess
 
 
+def _beaufort_label(force: float) -> str:
+    """Map a Beaufort force number to its label, clamped to the valid scale.
+
+    The returned label is always a member of the ``beaufort_scale`` enum so the
+    published value stays within the Home Assistant ``options`` list.
+    """
+    scale = get_enum_maps()["beaufort_scale"]
+    keys = sorted(scale.keys())
+    value = min(max(int(force), keys[0]), keys[-1])
+    return scale[value]
+
+
 # Lambda function registry for convert_lambda references in YAML
 _LAMBDA_REGISTRY = {
-    "beaufort_scale_map": lambda x, cp: get_enum_maps()["beaufort_scale"].get(
-        int(x), f"{int(x)} - Unknown"
-    ),
+    "beaufort_scale_map": lambda x, cp: _beaufort_label(x),
     "degrees_to_cardinal": lambda x, cp: degrees_to_cardinal(x),
     "localtime_to_utc_timestamp": lambda x, cp: datetime.fromtimestamp(
         x, tz=timezone.utc
