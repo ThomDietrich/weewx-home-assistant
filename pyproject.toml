@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["paho-mqtt", "pydantic", "PyYAML", "setuptools"]
+dependencies = ["paho-mqtt>=2.0", "pydantic>=2.5", "PyYAML>=6.0", "setuptools"]
 description = "WeeWX Home Assistant Python library"
 dynamic = ["version"]
 keywords = ["home-assistant", "mqtt", "weewx"]
