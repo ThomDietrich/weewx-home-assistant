@@ -4,139 +4,139 @@
 
 cm:
   unit_of_measurement: "cm"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 degree_C:
   unit_of_measurement: "°C"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 degree_F:
   unit_of_measurement: "°F"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 degree_K:
   unit_of_measurement: "K"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 degree_compass:
   unit_of_measurement: "°"
-  value_template: "{{ value | round(0) }}"
+  suggested_display_precision: 0
 
 foot:
   unit_of_measurement: "ft"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 gallon:
   unit_of_measurement: "gal"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 hPa:
   unit_of_measurement: "hPa"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 hour:
   unit_of_measurement: "h"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 inHg:
   unit_of_measurement: "inHg"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 inch:
   unit_of_measurement: "in"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 kPa:
   unit_of_measurement: "kPa"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 kilowatt:
   unit_of_measurement: "kW"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 kilowatt_hour:
   unit_of_measurement: "kWh"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 km_per_hour:
   unit_of_measurement: "km/h"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 knot:
   unit_of_measurement: "kn"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 liter:
   unit_of_measurement: "L"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 lux:
   unit_of_measurement: "lx"
-  value_template: "{{ value | round(0) }}"
+  suggested_display_precision: 0
 
 mbar:
   unit_of_measurement: "mbar"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 meter:
   unit_of_measurement: "m"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 meter_per_second:
   unit_of_measurement: "m/s"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 mile_per_hour:
   unit_of_measurement: "mph"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
 
 minute:
   unit_of_measurement: "min"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 mm:
   unit_of_measurement: "mm"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 mmHg:
   unit_of_measurement: "mmHg"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 mm_per_hour:
   unit_of_measurement: "mm/h"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 percent:
   unit_of_measurement: "%"
-  value_template: "{{ value | round(0) }}"
+  suggested_display_precision: 0
 
 percent_battery:
   unit_of_measurement: "%"
-  value_template: "{{ value | round(0) }}"
+  suggested_display_precision: 0
 
 second:
   unit_of_measurement: "s"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 unix_epoch:
   unit_of_measurement: null
 
 uv_index:
   unit_of_measurement: null
-  value_template: "{{ value | round(0) }}"
+  suggested_display_precision: 0
 
 volt:
   unit_of_measurement: "V"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 watt:
   unit_of_measurement: "W"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 watt_hour:
   unit_of_measurement: "Wh"
-  value_template: "{{ value | round(2) }}"
+  suggested_display_precision: 2
 
 watt_per_meter_squared:
   unit_of_measurement: "W/m²"
-  value_template: "{{ value | round(1) }}"
+  suggested_display_precision: 1
