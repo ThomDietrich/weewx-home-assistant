@@ -1,0 +1,460 @@
+---
+# German (de) localized sensor names. Overlays the English base (sensors.yaml);
+# only the display name is localized. Mirrors the partial-localization pattern
+# of sensors_cs.yaml.
+
+ET:
+  metadata:
+    name: "Evapotranspiration (Intervall)"
+
+THSW:
+  metadata:
+    name: "THSW-Index"
+
+UV:
+  metadata:
+    name: "UV-Index"
+
+altimeter:
+  metadata:
+    name: "Luftdruck (Altimeter, QNH)"
+
+altimeterRate:
+  metadata:
+    name: "Luftdruckänderung (Altimeter)"
+
+altitude:
+  metadata:
+    name: "Höhe"
+
+appTemp:
+  metadata:
+    name: "Gefühlte Temperatur"
+
+barometer:
+  metadata:
+    name: "Luftdruck (Meereshöhe, QFF)"
+
+barometerRate:
+  metadata:
+    name: "Luftdruckänderung (Meereshöhe)"
+
+batteryStatusChannel:
+  metadata:
+    name: "Batteriestatus Kanal"
+
+batteryStatusISS:
+  metadata:
+    name: "Batteriestatus ISS"
+
+beaufort:
+  metadata:
+    name: "Beaufort-Skala"
+
+cloudbase:
+  metadata:
+    name: "Wolkenuntergrenze"
+
+cloudcover:
+  metadata:
+    name: "Bewölkung"
+
+co:
+  metadata:
+    name: "Kohlenmonoxid"
+
+co2:
+  metadata:
+    name: "Kohlendioxid"
+
+consBatteryVoltage:
+  metadata:
+    name: "Batteriespannung Konsole"
+
+cooldeg:
+  metadata:
+    name: "Kühlgradtage"
+
+dateTime:
+  metadata:
+    name: "Meldezeit"
+
+dayET:
+  metadata:
+    name: "Evapotranspiration (Tag)"
+
+dayRain:
+  metadata:
+    name: "Regen (Tag)"
+
+daySunshineDur:
+  metadata:
+    name: "Sonnenscheindauer (Tag)"
+
+dewpoint:
+  metadata:
+    name: "Taupunkt"
+
+extraAlarm:
+  metadata:
+    name: "Zusatzalarm"
+
+extraHumid:
+  metadata:
+    name: "Zusatz-Luftfeuchte"
+
+extraTemp:
+  metadata:
+    name: "Zusatztemperatur"
+
+forecastIcon:
+  metadata:
+    name: "Vorhersage-Symbol"
+
+forecastRule:
+  metadata:
+    name: "Vorhersage-Regel"
+
+growdeg:
+  metadata:
+    name: "Wachstumsgradtage"
+
+gustdir:
+  metadata:
+    name: "Böenrichtung (Vektor)"
+
+gustdirCardinal:
+  metadata:
+    name: "Böenrichtung (Vektor, Himmelsrichtung)"
+
+hail:
+  metadata:
+    name: "Hagel"
+
+hailRate:
+  metadata:
+    name: "Hagelrate"
+
+heatdeg:
+  metadata:
+    name: "Heizgradtage"
+
+heatindex:
+  metadata:
+    name: "Hitzeindex"
+
+heatingTemp:
+  metadata:
+    name: "Heizungstemperatur"
+
+heatingVoltage:
+  metadata:
+    name: "Heizungsspannung"
+
+highOutTemp:
+  metadata:
+    name: "Außentemperatur Maximum"
+
+hourRain:
+  metadata:
+    name: "Regen (Stunde)"
+
+humidex:
+  metadata:
+    name: "Humidex"
+
+illuminance:
+  metadata:
+    name: "Beleuchtungsstärke"
+
+inDewpoint:
+  metadata:
+    name: "Taupunkt (innen)"
+
+inHumidity:
+  metadata:
+    name: "Luftfeuchte (innen)"
+
+inTemp:
+  metadata:
+    name: "Innentemperatur"
+
+insideAlarm:
+  metadata:
+    name: "Innen-Alarm"
+
+interval:
+  metadata:
+    name: "Archivintervall"
+
+leafTemp:
+  metadata:
+    name: "Blatttemperatur"
+
+leafWet:
+  metadata:
+    name: "Blattnässe"
+
+lightning_distance:
+  metadata:
+    name: "Blitz-Entfernung"
+
+lightning_disturber_count:
+  metadata:
+    name: "Blitz-Störungen Anzahl"
+
+lightning_noise_count:
+  metadata:
+    name: "Blitz-Rauschen Anzahl"
+
+lightning_strike_count:
+  metadata:
+    name: "Blitzeinschläge Anzahl"
+
+lowOutTemp:
+  metadata:
+    name: "Außentemperatur Minimum"
+
+maxSolarRad:
+  metadata:
+    name: "Sonnenstrahlung Maximum"
+
+monthET:
+  metadata:
+    name: "Evapotranspiration (Monat)"
+
+monthRain:
+  metadata:
+    name: "Regen (Monat)"
+
+nh3:
+  metadata:
+    name: "Ammoniak"
+
+no2:
+  metadata:
+    name: "Stickstoffdioxid"
+
+noise:
+  metadata:
+    name: "Geräuschpegel"
+
+o3:
+  metadata:
+    name: "Ozon"
+
+outHumidity:
+  metadata:
+    name: "Luftfeuchte"
+
+outTemp:
+  metadata:
+    name: "Außentemperatur"
+
+outWetbulb:
+  metadata:
+    name: "Feuchtkugeltemperatur (außen)"
+
+outsideAlarm:
+  metadata:
+    name: "Außen-Alarm"
+
+pb:
+  metadata:
+    name: "Blei-Konzentration"
+
+pm10_0:
+  metadata:
+    name: "Feinstaub PM10"
+
+pm1_0:
+  metadata:
+    name: "Feinstaub PM1.0"
+
+pm2_5:
+  metadata:
+    name: "Feinstaub PM2.5"
+
+pop:
+  metadata:
+    name: "Niederschlagswahrscheinlichkeit"
+
+pressure:
+  metadata:
+    name: "Luftdruck (absolut, QFE)"
+
+pressureRate:
+  metadata:
+    name: "Luftdruckänderung"
+
+radiation:
+  metadata:
+    name: "Sonnenstrahlung"
+
+rain:
+  metadata:
+    name: "Regen (Intervall)"
+
+rain24:
+  metadata:
+    name: "Regen (24 h)"
+
+rainDur:
+  metadata:
+    name: "Regendauer"
+
+rainRate:
+  metadata:
+    name: "Regenrate"
+
+referenceVoltage:
+  metadata:
+    name: "Referenzspannung"
+
+rms:
+  metadata:
+    name: "Windgeschwindigkeit (Effektivwert)"
+
+rxCheckPercent:
+  metadata:
+    name: "Empfangsqualität"
+
+snow:
+  metadata:
+    name: "Schnee"
+
+snowDepth:
+  metadata:
+    name: "Schneehöhe"
+
+snowMoisture:
+  metadata:
+    name: "Schneefeuchte"
+
+snowRate:
+  metadata:
+    name: "Schneerate"
+
+so2:
+  metadata:
+    name: "Schwefeldioxid"
+
+soilLeafAlarm:
+  metadata:
+    name: "Boden-/Blatt-Alarm"
+
+soilMoist:
+  metadata:
+    name: "Bodenfeuchte"
+
+soilTemp:
+  metadata:
+    name: "Bodentemperatur"
+
+stormRain:
+  metadata:
+    name: "Regen (Sturm)"
+
+stormStart:
+  metadata:
+    name: "Sturmbeginn"
+
+sunrise:
+  metadata:
+    name: "Sonnenaufgang"
+
+sunset:
+  metadata:
+    name: "Sonnenuntergang"
+
+sunshineDur:
+  metadata:
+    name: "Sonnenscheindauer"
+
+supplyVoltage:
+  metadata:
+    name: "Versorgungsspannung"
+
+totalRain:
+  metadata:
+    name: "Regen (Gesamt)"
+
+usUnits:
+  metadata:
+    name: "Einheitensystem"
+
+vecavg:
+  metadata:
+    name: "Vektor-Durchschnitt Windgeschwindigkeit"
+
+vecdir:
+  metadata:
+    name: "Vektor-Windrichtung"
+
+vecdirCardinal:
+  metadata:
+    name: "Vektor-Windrichtung (Himmelsrichtung)"
+
+wind:
+  metadata:
+    name: "Durchschnittliche Windgeschwindigkeit"
+
+windDir:
+  metadata:
+    name: "Windrichtung"
+
+windDir10:
+  metadata:
+    name: "Windrichtung (10 min)"
+
+windDir10Cardinal:
+  metadata:
+    name: "Windrichtung (10 min, Himmelsrichtung)"
+
+windDirCardinal:
+  metadata:
+    name: "Windrichtung (Himmelsrichtung)"
+
+windGust:
+  metadata:
+    name: "Böengeschwindigkeit"
+
+windGustDir:
+  metadata:
+    name: "Böenrichtung"
+
+windGustDirCardinal:
+  metadata:
+    name: "Böenrichtung (Himmelsrichtung)"
+
+windSpeed:
+  metadata:
+    name: "Windgeschwindigkeit"
+
+windSpeed10:
+  metadata:
+    name: "Windgeschwindigkeit (10 min)"
+
+windchill:
+  metadata:
+    name: "Windkühle"
+
+windgustvec:
+  metadata:
+    name: "Vektor-Böengeschwindigkeit"
+
+windrun:
+  metadata:
+    name: "Windweg"
+
+windvec:
+  metadata:
+    name: "Vektor-Windgeschwindigkeit"
+
+yearET:
+  metadata:
+    name: "Evapotranspiration (Jahr)"
+
+yearRain:
+  metadata:
+    name: "Regen (Jahr)"

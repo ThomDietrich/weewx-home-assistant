@@ -1,0 +1,35 @@
+---
+# German (de) localized enum mappings. Overlays enums.yaml.
+
+cardinal_directions:
+  0: "N"
+  1: "NNO"
+  2: "NO"
+  3: "ONO"
+  4: "O"
+  5: "OSO"
+  6: "SO"
+  7: "SSO"
+  8: "S"
+  9: "SSW"
+  10: "SW"
+  11: "WSW"
+  12: "W"
+  13: "WNW"
+  14: "NW"
+  15: "NNW"
+
+beaufort_scale:
+  0: "0 - Windstille"
+  1: "1 - leiser Zug"
+  2: "2 - leichte Brise"
+  3: "3 - schwache Brise"
+  4: "4 - mäßige Brise"
+  5: "5 - frische Brise"
+  6: "6 - starker Wind"
+  7: "7 - steifer Wind"
+  8: "8 - stürmischer Wind"
+  9: "9 - Sturm"
+  10: "10 - schwerer Sturm"
+  11: "11 - orkanartiger Sturm"
+  12: "12 - Orkan"

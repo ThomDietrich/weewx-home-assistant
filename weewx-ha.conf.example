@@ -28,9 +28,9 @@
     unit_system = METRICWX  # METRIC, METRICWX, or US
 
     # Language for localized sensor names (optional)
-    # Supported values: cs, en (or omit for English default)
+    # Supported values: cs, de, en (or omit for English default)
     # Falls back to English if translation not found
-    lang = cs
+    lang = de
 
     # Optional: Override or extend locale data (sensors, units, enums)
     # Overrides have highest priority: base YAML < localized YAML < config overrides
