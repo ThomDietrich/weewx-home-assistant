@@ -10,6 +10,7 @@ ET:
 
 THSW:
   metadata:
+    device_class: "temperature"
     icon: "mdi:thermometer-lines"
     name: "THSW Index"
     state_class: "measurement"
@@ -227,6 +228,7 @@ hail:
 
 hailRate:
   metadata:
+    device_class: "precipitation_intensity"
     icon: "mdi:weather-hail"
     name: "Hail Rate"
     state_class: "measurement"
@@ -272,6 +274,7 @@ hourRain:
 
 humidex:
   metadata:
+    device_class: "temperature"
     icon: "mdi:water-percent"
     name: "Humidex"
     state_class: "measurement"
@@ -689,6 +692,7 @@ wind:
 
 windDir:
   metadata:
+    device_class: "wind_direction"
     icon: "mdi:compass-rose"
     name: "Wind Direction"
     state_class: "measurement_angle"
@@ -705,6 +709,7 @@ windDirCardinal:
 
 windDir10:
   metadata:
+    device_class: "wind_direction"
     icon: "mdi:compass-rose"
     name: "10-Minute Wind Direction"
     state_class: "measurement_angle"
@@ -728,6 +733,7 @@ windGust:
 
 windGustDir:
   metadata:
+    device_class: "wind_direction"
     icon: "mdi:compass-rose"
     name: "Wind Gust Direction"
     state_class: "measurement_angle"
