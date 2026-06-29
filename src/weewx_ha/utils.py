@@ -208,7 +208,15 @@ def _beaufort_label(force: float) -> str:
     """
     scale = get_enum_maps()["beaufort_scale"]
     keys = sorted(scale.keys())
-    value = min(max(int(force), keys[0]), keys[-1])
+    value = int(force)
+    if value < keys[0] or value > keys[-1]:
+        logger.warning(
+            "Beaufort force %s outside valid range [%s, %s]; clamping",
+            value,
+            keys[0],
+            keys[-1],
+        )
+        value = min(max(value, keys[0]), keys[-1])
     return scale[value]
 
 

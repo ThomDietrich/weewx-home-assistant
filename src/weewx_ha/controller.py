@@ -36,7 +36,9 @@ THREAD_POOL_SIZE = 2
 # See the WeeWX docs on LOOP vs ARCHIVE. Extend this set as needed.
 ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun"})
 # Bookkeeping fields kept in the filtered archive record so downstream unit
-# conversion (to_std_system) still works.
+# conversion (to_std_system) still works. usUnits also has a sensor config, so it
+# rides along as a published state value -- harmless, as it is identical to the
+# value already published from LOOP packets.
 ARCHIVE_PASSTHROUGH_KEYS = frozenset({"usUnits"})
 
 
@@ -257,9 +259,13 @@ class Controller(StdService):
             for key, value in event.record.items()
             if key in ARCHIVE_ONLY_MEASUREMENTS or key in ARCHIVE_PASSTHROUGH_KEYS
         }
-        if not ARCHIVE_ONLY_MEASUREMENTS.intersection(filtered):
+        if (
+            not ARCHIVE_ONLY_MEASUREMENTS.intersection(filtered)
+            or "usUnits" not in filtered
+        ):
             logger.debug(
-                "No archive-exclusive measurements in record; nothing to publish"
+                "No archive-exclusive measurements (with usUnits) in record; "
+                "nothing to publish"
             )
             return
         if self.mqtt_client.is_connected():

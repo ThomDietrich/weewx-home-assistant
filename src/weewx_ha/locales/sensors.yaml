@@ -761,11 +761,11 @@ windgustvec:
     icon: "mdi:windsock"
     name: "Wind Gust Vector Speed"
 
-windburn:
+windrun:
   metadata:
     device_class: "distance"
     icon: "mdi:windsock"
-    name: "Wind Run Distance"
+    name: "Wind Run"
 
 windvec:
   metadata:

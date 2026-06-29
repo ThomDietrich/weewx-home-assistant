@@ -43,7 +43,12 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
         # base entry, silently no-op'ing enum overrides.
         merge_key = key
         if key not in result:
-            if isinstance(key, str) and key.lstrip("-").isdigit() and int(key) in result:
+            if (
+                isinstance(key, str)
+                and key.lstrip("-").isascii()
+                and key.lstrip("-").isdigit()
+                and int(key) in result
+            ):
                 merge_key = int(key)
             elif isinstance(key, int) and str(key) in result:
                 merge_key = str(key)
