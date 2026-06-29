@@ -203,8 +203,9 @@ growdeg:
 
 gustdir:
   metadata:
+    enabled_by_default: false
     icon: "mdi:compass-rose"
-    name: "Wind Gust Direction"
+    name: "Wind Gust Direction (Vector)"
     state_class: "measurement_angle"
 
 gustdirCardinal:
@@ -212,8 +213,9 @@ gustdirCardinal:
   convert_lambda: "degrees_to_cardinal"
   metadata:
     device_class: "enum"
+    enabled_by_default: false
     icon: "mdi:compass-rose"
-    name: "Wind Gust Direction Cardinal"
+    name: "Wind Gust Direction Cardinal (Vector)"
     options: "@cardinal_directions"
     unit_of_measurement: null
 
@@ -652,12 +654,14 @@ usUnits:
 vecavg:
   metadata:
     device_class: "wind_speed"
+    enabled_by_default: false
     icon: "mdi:windsock"
     name: "Vector Average Wind Speed"
     state_class: "measurement"
 
 vecdir:
   metadata:
+    enabled_by_default: false
     icon: "mdi:compass-rose"
     name: "Vector Direction"
     state_class: "measurement_angle"
@@ -667,6 +671,7 @@ vecdirCardinal:
   convert_lambda: "degrees_to_cardinal"
   metadata:
     device_class: "enum"
+    enabled_by_default: false
     icon: "mdi:compass-rose"
     name: "Vector Direction Cardinal"
     options: "@cardinal_directions"
@@ -675,8 +680,9 @@ vecdirCardinal:
 wind:
   metadata:
     device_class: "wind_speed"
+    enabled_by_default: false
     icon: "mdi:windsock"
-    name: "Wind Speed"
+    name: "Average Wind Speed"
     state_class: "measurement"
 
 windDir:
@@ -758,6 +764,7 @@ windchill:
 windgustvec:
   metadata:
     device_class: "wind_speed"
+    enabled_by_default: false
     icon: "mdi:windsock"
     name: "Wind Gust Vector Speed"
 
@@ -770,6 +777,7 @@ windrun:
 windvec:
   metadata:
     device_class: "wind_speed"
+    enabled_by_default: false
     icon: "mdi:windsock"
     name: "Wind Vector Speed"
 
