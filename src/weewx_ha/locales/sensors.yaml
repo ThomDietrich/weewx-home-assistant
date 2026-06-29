@@ -11,7 +11,7 @@ ET:
 THSW:
   metadata:
     icon: "mdi:thermometer-lines"
-    name: "Temperature Humidity Sun Wind Index"
+    name: "THSW Index"
     state_class: "measurement"
 
 UV:
@@ -133,7 +133,7 @@ dateTime:
     enabled_by_default: false
     device_class: "timestamp"
     icon: "mdi:clock"
-    name: "Date Time"
+    name: "Report Time"
 
 dayET:
   metadata:
@@ -315,8 +315,9 @@ inTemp:
 
 interval:
   metadata:
+    entity_category: "diagnostic"
     icon: "mdi:repeat"
-    name: "Interval"
+    name: "Archive Interval"
 
 leafTemp:
   metadata:
@@ -648,8 +649,9 @@ usUnits:
     attributes:
       options: "{{ ['METRIC', 'METRICWX', 'US'] }}"
     device_class: "enum"
+    entity_category: "diagnostic"
     icon: "mdi:scale-balance"
-    name: "Units"
+    name: "Unit System"
 
 vecavg:
   metadata:
