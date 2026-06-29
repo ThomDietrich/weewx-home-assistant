@@ -5,7 +5,6 @@
 ET:
   metadata:
     device_class: "precipitation"
-    enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Interval Evapotranspiration"
 
@@ -142,7 +141,6 @@ dateTime:
 dayET:
   metadata:
     device_class: "precipitation"
-    enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Daily Evapotranspiration"
     state_class: "total_increasing"
@@ -371,7 +369,6 @@ lowOutTemp:
 
 maxSolarRad:
   metadata:
-    enabled_by_default: false
     device_class: "irradiance"
     icon: "mdi:sun-wireless"
     name: "Maximum Solar Radiation"
