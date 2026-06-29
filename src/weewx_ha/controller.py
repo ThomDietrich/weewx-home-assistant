@@ -154,6 +154,13 @@ class Controller(StdService):
             client.publish(self.availability_topic, "online", qos=1, retain=True)
             # Subscribe to the homeassistant birth message
             client.subscribe(f"{self.config.discovery_topic_prefix}/status", qos=1)
+            # Re-publish discovery so entities survive broker/connection drops
+            # (important for a remote MQTT link). On the very first connect the
+            # publishers may not be constructed yet and no measurements are known,
+            # so guard and skip -- discovery then follows from the first packet.
+            if getattr(self, "config_publisher", None) is not None:
+                future = self.executor.submit(self.config_publisher.publish_discovery)
+                future.add_done_callback(self.check_future_errors)
         else:
             logger.error(f"Failed to connect to MQTT broker, return code {reason_code}")
 

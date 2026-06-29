@@ -84,7 +84,11 @@ class StatePublisher:
             if convert_lambda := config.get("convert_lambda"):
                 # Apply conversion lambda if it exists
                 value = convert_lambda(value, self.config_publisher)
-            self.mqtt_client.publish(f"{self.state_topic_prefix}/{key}", value)
+            # Retained + QoS 1: HA gets the latest value immediately on (re)connect
+            # over a remote link; the LWT marks the device unavailable if it drops.
+            self.mqtt_client.publish(
+                f"{self.state_topic_prefix}/{key}", value, qos=1, retain=True
+            )
 
             # Publish derived sensors that use this key as source (use original value)
             self._publish_derived_sensors(key, original_value)
@@ -114,7 +118,10 @@ class StatePublisher:
                 if convert_lambda := sensor_config.get("convert_lambda"):
                     derived_value = convert_lambda(source_value, self.config_publisher)
                     self.mqtt_client.publish(
-                        f"{self.state_topic_prefix}/{sensor_name}", derived_value
+                        f"{self.state_topic_prefix}/{sensor_name}",
+                        derived_value,
+                        qos=1,
+                        retain=True,
                     )
                     logger.debug(
                         f"Published derived sensor {sensor_name} from {source_key}: {derived_value}"

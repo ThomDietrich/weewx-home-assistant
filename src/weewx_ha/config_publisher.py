@@ -222,5 +222,8 @@ class ConfigPublisher:
             logger.debug(
                 f"Publishing discovery configuration: {discovery_topic}: {payload}"
             )
-            # Publish the discovery configuration
-            self.mqtt_client.publish(discovery_topic, json.dumps(payload))
+            # Publish the discovery configuration. Retained + QoS 1 so entities
+            # survive broker restarts and a lossy/remote MQTT link.
+            self.mqtt_client.publish(
+                discovery_topic, json.dumps(payload), qos=1, retain=True
+            )
