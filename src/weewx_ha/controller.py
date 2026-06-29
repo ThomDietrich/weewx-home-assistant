@@ -28,6 +28,17 @@ logger = logging.getLogger(__name__)
 EXTENSION_CONFIG_KEY = "HomeAssistant"
 THREAD_POOL_SIZE = 2
 
+# WeeWX archive records are aggregations (averages for intensive types, sums for
+# extensive types) of the LOOP packets over the archive interval. Re-publishing
+# them wholesale would overwrite the more recent real-time LOOP values in Home
+# Assistant. We therefore only publish observations that are exclusive to archive
+# records -- i.e. absent or always None in LOOP packets (e.g. ET and windrun).
+# See the WeeWX docs on LOOP vs ARCHIVE. Extend this set as needed.
+ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun"})
+# Bookkeeping fields kept in the filtered archive record so downstream unit
+# conversion (to_std_system) still works.
+ARCHIVE_PASSTHROUGH_KEYS = frozenset({"usUnits"})
+
 
 class Controller(StdService):
     """Controller class for the Home Assistant MQTT extension."""
@@ -103,7 +114,13 @@ class Controller(StdService):
 
     def init_mqtt_client(self, mqtt_config: MQTTConfig):
         """Initialize the MQTT client."""
-        logger.info(f"MQTT configuration: {mqtt_config}")
+        logger.debug(
+            "MQTT configuration: host=%s port=%s tls=%s user=%s",
+            mqtt_config.hostname,
+            mqtt_config.port,
+            mqtt_config.use_tls,
+            "<set>" if mqtt_config.username else "<none>",
+        )
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, mqtt_config.client_id)
         client.logger = logger
         # Set the callbacks
@@ -225,12 +242,29 @@ class Controller(StdService):
             logger.warning("MQTT client is not connected, skipping packet processing")
 
     def on_weewx_archive(self, event):
-        """Handle callback for WeeWX archive records."""
+        """Handle callback for WeeWX archive records.
+
+        Archive records aggregate LOOP packets, so re-publishing them wholesale
+        would overwrite the more recent real-time LOOP values in Home Assistant.
+        Only observations exclusive to archive records (ARCHIVE_ONLY_MEASUREMENTS,
+        e.g. ET and windrun, which are absent/None in LOOP packets) are published
+        from here.
+        """
         record_keys = sorted(event.record.keys())
         logger.debug(f"Received WeeWX archive record with keys: {record_keys}")
+        filtered = {
+            key: value
+            for key, value in event.record.items()
+            if key in ARCHIVE_ONLY_MEASUREMENTS or key in ARCHIVE_PASSTHROUGH_KEYS
+        }
+        if not ARCHIVE_ONLY_MEASUREMENTS.intersection(filtered):
+            logger.debug(
+                "No archive-exclusive measurements in record; nothing to publish"
+            )
+            return
         if self.mqtt_client.is_connected():
             preprocessor_future = self.executor.submit(
-                self.packet_preprocessor.process_packet, event.record.copy()
+                self.packet_preprocessor.process_packet, filtered
             )
             preprocessor_future.add_done_callback(self.preprocessor_complete)
         else:
