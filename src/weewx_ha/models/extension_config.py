@@ -27,7 +27,8 @@ class ExtensionConfig(BaseModel):
     )
     lang: Optional[str] = Field(
         default=None,
-        description="Language code for localized sensor names (e.g., 'cs', 'en'). Falls back to English if not set.",
+        pattern=r"^[a-zA-Z]{2,3}(_[a-zA-Z]{2,4})?$",
+        description="Language code for localized sensor names (e.g., 'cs', 'en', 'de'). Falls back to English if not set.",
     )
     mqtt: MQTTConfig = Field(..., description="MQTT broker configuration")
     node_id: str = Field(
