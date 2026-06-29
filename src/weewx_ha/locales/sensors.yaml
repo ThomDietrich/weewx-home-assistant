@@ -4,6 +4,7 @@
 
 ET:
   metadata:
+    device_class: "precipitation"
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Interval Evapotranspiration"
@@ -75,6 +76,7 @@ batteryStatusISS:
   integration: "binary_sensor"
   metadata:
     device_class: "battery"
+    entity_category: "diagnostic"
     icon: "mdi:battery"
     name: "ISS Battery Status"
     payload_off: 0
@@ -119,6 +121,7 @@ co2:
 consBatteryVoltage:
   metadata:
     device_class: "voltage"
+    entity_category: "diagnostic"
     icon: "mdi:sine-wave"
     name: "Console Battery Voltage"
     state_class: "measurement"
@@ -138,6 +141,7 @@ dateTime:
 
 dayET:
   metadata:
+    device_class: "precipitation"
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Daily Evapotranspiration"
@@ -255,6 +259,7 @@ heatingTemp:
 heatingVoltage:
   metadata:
     device_class: "voltage"
+    entity_category: "diagnostic"
     icon: "mdi:sine-wave"
     name: "Heating Voltage"
     state_class: "measurement"
@@ -374,6 +379,7 @@ maxSolarRad:
 
 monthET:
   metadata:
+    device_class: "precipitation"
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Monthly Evapotranspiration"
@@ -524,6 +530,7 @@ rainRate:
 referenceVoltage:
   metadata:
     device_class: "voltage"
+    entity_category: "diagnostic"
     icon: "mdi:sine-wave"
     name: "Reference Voltage"
     state_class: "measurement"
@@ -531,12 +538,14 @@ referenceVoltage:
 rms:
   metadata:
     device_class: "wind_speed"
+    enabled_by_default: false
     icon: "mdi:windsock"
     name: "Root Mean Square Wind Speed"
     state_class: "measurement"
 
 rxCheckPercent:
   metadata:
+    entity_category: "diagnostic"
     icon: "mdi:radio-tower"
     name: "Receive Check Percentage"
     state_class: "measurement"
@@ -635,6 +644,7 @@ sunshineDur:
 supplyVoltage:
   metadata:
     device_class: "voltage"
+    entity_category: "diagnostic"
     icon: "mdi:sine-wave"
     name: "Supply Voltage"
     state_class: "measurement"
@@ -791,6 +801,7 @@ windvec:
 
 yearET:
   metadata:
+    device_class: "precipitation"
     enabled_by_default: false
     icon: "mdi:waves-arrow-up"
     name: "Yearly Evapotranspiration"
