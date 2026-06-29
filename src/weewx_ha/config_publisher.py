@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import paho.mqtt.client as mqtt
 from weewx.units import to_std_system  # type: ignore
 
+from ._version import __version__
 from .models import StationInfo
 from .utils import UnitSystem, get_key_config, get_unit_metadata
 
@@ -82,6 +83,17 @@ class ConfigPublisher:
                 "name": station_info.name,
                 "model": station_info.model,
                 "manufacturer": station_info.manufacturer,
+            }
+        }
+
+        # Origin metadata identifies the publishing software in Home Assistant's
+        # discovery logs (recommended best practice; required for device-based
+        # discovery).
+        self.origin_description: dict[str, Any] = {
+            "origin": {
+                "name": "weewx-home-assistant",
+                "sw_version": __version__,
+                "support_url": "https://github.com/ThomDietrich/weewx-home-assistant",
             }
         }
 
@@ -201,6 +213,7 @@ class ConfigPublisher:
                 }
                 | config.get("metadata", {})
                 | self.device_description
+                | self.origin_description
             )
 
             # Remove any keys with None values
