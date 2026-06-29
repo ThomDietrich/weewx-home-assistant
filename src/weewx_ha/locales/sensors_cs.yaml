@@ -47,7 +47,7 @@ windGustDirCardinal:
 
 rain:
   metadata:
-    name: "Srážky"
+    name: "Srážky (interval)"
 
 rainRate:
   metadata:
