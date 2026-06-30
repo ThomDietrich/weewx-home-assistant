@@ -13,6 +13,22 @@ configuration. Additionally, it ensures that all weather data is securely
 transmitted and devices are always accurately represented, thanks to its support
 for availability messages.
 
+> [!NOTE]
+> **This is a fork.** It builds on
+> [konikvranik's rework](https://github.com/konikvranik/weewx-home-assistant) of
+> the original and, on top of that base, ships a hardened and tidied sensor set:
+> long-term statistics (`state_class`/`device_class` on every sensor), raw values
+> on the wire (display rounding via `suggested_display_precision`, so your
+> database keeps full precision), clearer and unambiguous sensor names, a full
+> German (`de`) translation, daily accumulators such as `dayET`, and
+> retained/QoS-1 publishing that survives a remote broker.
+>
+> **Install this fork:**
+> `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`
+>
+> **Staying current:** the work lives on the `consolidated` branch — re-run the
+> install command to update, and check the commit history to see what changed.
+
 Key Features:
 
 - **Simplified Setup**: Implements Home Assistant's MQTT discovery, allowing
