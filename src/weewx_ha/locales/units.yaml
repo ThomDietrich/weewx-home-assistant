@@ -46,6 +46,10 @@ inch:
   unit_of_measurement: "in"
   suggested_display_precision: 2
 
+inch_per_hour:
+  unit_of_measurement: "in/h"
+  suggested_display_precision: 2
+
 kPa:
   unit_of_measurement: "kPa"
   suggested_display_precision: 2
