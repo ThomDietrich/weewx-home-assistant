@@ -87,6 +87,10 @@ dayRain:
   metadata:
     name: "Regen (Tag)"
 
+weekRain:
+  metadata:
+    name: "Regen (Woche)"
+
 daySunshineDur:
   metadata:
     name: "Sonnenscheindauer (Tag)"

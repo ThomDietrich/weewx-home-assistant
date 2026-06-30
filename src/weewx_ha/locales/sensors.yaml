@@ -152,6 +152,13 @@ dayRain:
     name: "Daily Rainfall"
     state_class: "total_increasing"
 
+weekRain:
+  metadata:
+    device_class: "precipitation"
+    icon: "mdi:cup-water"
+    name: "Weekly Rainfall"
+    state_class: "total_increasing"
+
 daySunshineDur:
   metadata:
     device_class: "duration"
