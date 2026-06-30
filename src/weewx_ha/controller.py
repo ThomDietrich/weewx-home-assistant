@@ -32,9 +32,10 @@ THREAD_POOL_SIZE = 2
 # extensive types) of the LOOP packets over the archive interval. Re-publishing
 # them wholesale would overwrite the more recent real-time LOOP values in Home
 # Assistant. We therefore only publish observations that are exclusive to archive
-# records -- i.e. absent or always None in LOOP packets (e.g. ET and windrun).
-# See the WeeWX docs on LOOP vs ARCHIVE. Extend this set as needed.
-ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun"})
+# records -- i.e. absent or always None in LOOP packets (e.g. ET and windrun, or
+# per-interval durations such as sunshineDur/rainDur added by services like
+# weewx-sunrainduration). See the WeeWX docs on LOOP vs ARCHIVE. Extend as needed.
+ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun", "sunshineDur", "rainDur"})
 # Bookkeeping fields kept in the filtered archive record so downstream unit
 # conversion (to_std_system) still works. usUnits also has a sensor config, so it
 # rides along as a published state value -- harmless, as it is identical to the
