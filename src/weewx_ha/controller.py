@@ -13,6 +13,7 @@ from typing import Any
 
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
+from weeutil.weeutil import startOfDay  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
 
@@ -41,6 +42,18 @@ ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun", "sunshineDur", "rainDur"
 # rides along as a published state value -- harmless, as it is identical to the
 # value already published from LOOP packets.
 ARCHIVE_PASSTHROUGH_KEYS = frozenset({"usUnits"})
+
+# weewx-sunrainduration emits only the per-interval ``sunshineDur`` (seconds).
+# Home Assistant users typically want "sunshine hours today", so we derive a
+# cumulative daily total (in hours) from the WeeWX database and publish it as
+# ``daySunshineDur``. Reading the day's sum from the DB (rather than keeping an
+# in-memory counter) keeps the value correct across WeeWX restarts and resets
+# automatically at local midnight. group_deltatime is numerically identical
+# across unit systems, so to_std_system leaves the value untouched and the unit
+# is overridden to "h" in the sensor metadata (sensors.yaml: daySunshineDur).
+DAILY_SUNSHINE_SOURCE = "sunshineDur"
+DAILY_SUNSHINE_KEY = "daySunshineDur"
+ARCHIVE_DATA_BINDING = "wx_binding"
 
 
 class Controller(StdService):
@@ -277,6 +290,8 @@ class Controller(StdService):
                 "nothing to publish"
             )
             return
+        # Derive and append the cumulative daily sunshine total (in hours).
+        self._augment_daily_sunshine(event.record, filtered)
         if self.mqtt_client.is_connected():
             preprocessor_future = self.executor.submit(
                 self.packet_preprocessor.process_packet, filtered
@@ -286,6 +301,32 @@ class Controller(StdService):
             logger.warning(
                 "MQTT client is not connected, skipping archive record processing"
             )
+
+    def _augment_daily_sunshine(self, record: dict, filtered: dict) -> None:
+        """Derive a cumulative daily sunshine total and add it to ``filtered``.
+
+        ``weewx-sunrainduration`` only emits the per-interval ``sunshineDur``
+        (seconds). To give Home Assistant a "sunshine hours today" value, sum the
+        day's ``sunshineDur`` from the database (authoritative and restart-safe)
+        and publish it as ``daySunshineDur`` in hours. The archive day runs from
+        just after local midnight (dateTime > startOfDay) up to and including this
+        record. No-op when the source field is absent (setups without the add-on).
+        """
+        if record.get(DAILY_SUNSHINE_SOURCE) is None:
+            return
+        try:
+            day_start = startOfDay(record["dateTime"])
+            manager = self.engine.db_binder.get_manager(ARCHIVE_DATA_BINDING)
+            row = manager.getSql(
+                f"SELECT SUM({DAILY_SUNSHINE_SOURCE}) FROM {manager.table_name} "
+                "WHERE dateTime > ? AND dateTime <= ?",
+                (day_start, record["dateTime"]),
+            )
+        except Exception:
+            logger.error("Failed to compute daily sunshine duration", exc_info=True)
+            return
+        day_seconds = row[0] if row and row[0] is not None else 0.0
+        filtered[DAILY_SUNSHINE_KEY] = day_seconds / 3600.0
 
     def shutDown(self):
         """Shutdown the controller.

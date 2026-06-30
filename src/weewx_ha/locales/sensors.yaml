@@ -165,6 +165,8 @@ daySunshineDur:
     icon: "mdi:sun-clock"
     name: "Day Sunshine Duration"
     state_class: "total_increasing"
+    suggested_display_precision: 2
+    unit_of_measurement: "h"
 
 dewpoint:
   metadata:
