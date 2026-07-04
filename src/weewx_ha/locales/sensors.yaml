@@ -8,6 +8,12 @@ ET:
     icon: "mdi:waves-arrow-up"
     name: "Interval Evapotranspiration"
 
+eventRain:
+  metadata:
+    device_class: "precipitation"
+    icon: "mdi:weather-pouring"
+    name: "Event Rainfall"
+
 THSW:
   metadata:
     device_class: "temperature"

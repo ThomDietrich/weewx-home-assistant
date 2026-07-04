@@ -14,6 +14,7 @@ from typing import Any
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
 from weeutil.weeutil import startOfDay  # type: ignore
+import weewx.units  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
 
@@ -22,6 +23,12 @@ from .locale_loader import set_config_overrides, set_language
 from .models import ExtensionConfig, MQTTConfig
 
 logger = logging.getLogger(__name__)
+
+# Register unit groups for the DB-derived rain/ET aggregates published from the
+# archive record, so to_std_system converts them (US inch -> METRICWX mm) and
+# getStandardUnitType yields the correct unit for discovery.
+for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 # TODO Add command topics to control configuration settings
 
@@ -54,6 +61,14 @@ ARCHIVE_PASSTHROUGH_KEYS = frozenset({"usUnits"})
 DAILY_SUNSHINE_SOURCE = "sunshineDur"
 DAILY_SUNSHINE_KEY = "daySunshineDur"
 ARCHIVE_DATA_BINDING = "wx_binding"
+
+# Rolling / cumulative aggregates derived from the archive DB (like
+# daySunshineDur) so Home Assistant needs no statistics/utility_meter helpers
+# that starve when the station reports no change during dry periods.
+HOUR_S = 3600
+DAY_S = 86400
+RAIN_EVENT_GAP_S = 6 * 3600            # >= 6 h dry separates rain events (MIT/IETD)
+RAIN_EVENT_LOOKBACK_S = 30 * 86400
 
 
 class Controller(StdService):
@@ -290,8 +305,8 @@ class Controller(StdService):
                 "nothing to publish"
             )
             return
-        # Derive and append the cumulative daily sunshine total (in hours).
-        self._augment_daily_sunshine(event.record, filtered)
+        # Derive and append DB-based aggregates (daily sunshine, rolling rain, ET).
+        self._augment_db_derived(event.record, filtered)
         if self.mqtt_client.is_connected():
             preprocessor_future = self.executor.submit(
                 self.packet_preprocessor.process_packet, filtered
@@ -302,31 +317,72 @@ class Controller(StdService):
                 "MQTT client is not connected, skipping archive record processing"
             )
 
-    def _augment_daily_sunshine(self, record: dict, filtered: dict) -> None:
-        """Derive a cumulative daily sunshine total and add it to ``filtered``.
+    def _augment_db_derived(self, record: dict, filtered: dict) -> None:
+        """Add DB-derived aggregates to ``filtered`` for Home Assistant.
 
-        ``weewx-sunrainduration`` only emits the per-interval ``sunshineDur``
-        (seconds). To give Home Assistant a "sunshine hours today" value, sum the
-        day's ``sunshineDur`` from the database (authoritative and restart-safe)
-        and publish it as ``daySunshineDur`` in hours. The archive day runs from
-        just after local midnight (dateTime > startOfDay) up to and including this
-        record. No-op when the source field is absent (setups without the add-on).
+        All values are summed from the WeeWX archive database (authoritative and
+        restart-safe), so Home Assistant needs no statistics/utility_meter helpers
+        that would starve when the station reports no change:
+          - daySunshineDur: cumulative daily sunshine, in hours (from sunshineDur).
+          - hourRain / rain24: rolling rainfall over the last 1 h / 24 h.
+          - dayET: cumulative evapotranspiration since local midnight.
+          - eventRain: rainfall of the most recent event (events separated by a
+            >= 6 h dry period, the Minimum Inter-event Time).
+        Rain/ET values stay in the record's unit system; to_std_system converts
+        them (US inch -> mm) downstream. No-op on failure (logged).
         """
-        if record.get(DAILY_SUNSHINE_SOURCE) is None:
+        dt = record.get("dateTime")
+        if dt is None:
             return
         try:
-            day_start = startOfDay(record["dateTime"])
             manager = self.engine.db_binder.get_manager(ARCHIVE_DATA_BINDING)
-            row = manager.getSql(
-                f"SELECT SUM({DAILY_SUNSHINE_SOURCE}) FROM {manager.table_name} "
-                "WHERE dateTime > ? AND dateTime <= ?",
-                (day_start, record["dateTime"]),
-            )
+            table = manager.table_name
+
+            def _sum(column: str, start: float) -> float:
+                row = manager.getSql(
+                    f"SELECT SUM({column}) FROM {table} "
+                    "WHERE dateTime > ? AND dateTime <= ?",
+                    (start, dt),
+                )
+                return row[0] if row and row[0] is not None else 0.0
+
+            if record.get(DAILY_SUNSHINE_SOURCE) is not None:
+                filtered[DAILY_SUNSHINE_KEY] = (
+                    _sum(DAILY_SUNSHINE_SOURCE, startOfDay(dt)) / 3600.0
+                )
+            filtered["hourRain"] = _sum("rain", dt - HOUR_S)
+            filtered["rain24"] = _sum("rain", dt - DAY_S)
+            filtered["dayET"] = _sum("ET", startOfDay(dt))
+            filtered["eventRain"] = self._compute_event_rain(manager, table, dt)
         except Exception:
-            logger.error("Failed to compute daily sunshine duration", exc_info=True)
-            return
-        day_seconds = row[0] if row and row[0] is not None else 0.0
-        filtered[DAILY_SUNSHINE_KEY] = day_seconds / 3600.0
+            logger.error("Failed to compute DB-derived aggregates", exc_info=True)
+
+    @staticmethod
+    def _compute_event_rain(manager, table: str, dt: float) -> float:
+        """Rainfall total of the most recent contiguous rain event.
+
+        Rain records separated by >= RAIN_EVENT_GAP_S (6 h) without measurable
+        rain belong to different events. Returns 0.0 when there was no rain within
+        the lookback window.
+        """
+        recs = [
+            (r[0], r[1])
+            for r in manager.genSql(
+                f"SELECT dateTime, rain FROM {table} "
+                "WHERE rain > 0 AND dateTime > ? AND dateTime <= ? "
+                "ORDER BY dateTime ASC",
+                (dt - RAIN_EVENT_LOOKBACK_S, dt),
+            )
+            if r[1] is not None
+        ]
+        if not recs:
+            return 0.0
+        total = recs[-1][1]
+        for i in range(len(recs) - 1, 0, -1):
+            if recs[i][0] - recs[i - 1][0] >= RAIN_EVENT_GAP_S:
+                break
+            total += recs[i - 1][1]
+        return total
 
     def shutDown(self):
         """Shutdown the controller.
