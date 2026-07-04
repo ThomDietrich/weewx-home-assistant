@@ -327,7 +327,8 @@ class Controller(StdService):
           - hourRain / rain24: rolling rainfall over the last 1 h / 24 h.
           - dayET: cumulative evapotranspiration since local midnight.
           - eventRain: rainfall of the most recent event (events separated by a
-            >= 6 h dry period, the Minimum Inter-event Time).
+            >= 6 h dry period, the Minimum Inter-event Time), with eventRainStart,
+            eventRainEnd (timestamps) and eventRainDuration (minutes).
         Rain/ET values stay in the record's unit system; to_std_system converts
         them (US inch -> mm) downstream. No-op on failure (logged).
         """
@@ -353,17 +354,29 @@ class Controller(StdService):
             filtered["hourRain"] = _sum("rain", dt - HOUR_S)
             filtered["rain24"] = _sum("rain", dt - DAY_S)
             filtered["dayET"] = _sum("ET", startOfDay(dt))
-            filtered["eventRain"] = self._compute_event_rain(manager, table, dt)
+            event_total, event_start, event_end = self._compute_event_rain(
+                manager, table, dt
+            )
+            filtered["eventRain"] = event_total
+            if event_start is not None:
+                interval_s = (record.get("interval") or 0) * 60
+                filtered["eventRainStart"] = event_start
+                filtered["eventRainEnd"] = event_end
+                filtered["eventRainDuration"] = (
+                    event_end - event_start + interval_s
+                ) / 60.0
         except Exception:
             logger.error("Failed to compute DB-derived aggregates", exc_info=True)
 
     @staticmethod
-    def _compute_event_rain(manager, table: str, dt: float) -> float:
-        """Rainfall total of the most recent contiguous rain event.
+    def _compute_event_rain(manager, table: str, dt: float):
+        """Return ``(total, start, end)`` of the most recent contiguous rain event.
 
+        ``total`` is the summed rainfall; ``start`` and ``end`` are the epoch
+        timestamps of the first and last measurable-rain records of that event.
         Rain records separated by >= RAIN_EVENT_GAP_S (6 h) without measurable
-        rain belong to different events. Returns 0.0 when there was no rain within
-        the lookback window.
+        rain belong to different events. Returns ``(0.0, None, None)`` when there
+        was no rain within the lookback window.
         """
         recs = [
             (r[0], r[1])
@@ -376,13 +389,15 @@ class Controller(StdService):
             if r[1] is not None
         ]
         if not recs:
-            return 0.0
+            return 0.0, None, None
+        start = end = recs[-1][0]
         total = recs[-1][1]
         for i in range(len(recs) - 1, 0, -1):
             if recs[i][0] - recs[i - 1][0] >= RAIN_EVENT_GAP_S:
                 break
             total += recs[i - 1][1]
-        return total
+            start = recs[i - 1][0]
+        return total, start, end
 
     def shutDown(self):
         """Shutdown the controller.

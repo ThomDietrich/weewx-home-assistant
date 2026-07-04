@@ -11,6 +11,18 @@ eventRain:
   metadata:
     name: "Regen (letzter Schauer)"
 
+eventRainStart:
+  metadata:
+    name: "Regen (Schauerbeginn)"
+
+eventRainEnd:
+  metadata:
+    name: "Regen (Schauerende)"
+
+eventRainDuration:
+  metadata:
+    name: "Regen (Schauerdauer)"
+
 THSW:
   metadata:
     name: "THSW-Index"

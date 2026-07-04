@@ -20,8 +20,26 @@ for availability messages.
 > long-term statistics (`state_class`/`device_class` on every sensor), raw values
 > on the wire (display rounding via `suggested_display_precision`, so your
 > database keeps full precision), clearer and unambiguous sensor names, a full
-> German (`de`) translation, daily accumulators such as `dayET`, and
-> retained/QoS-1 publishing that survives a remote broker.
+> German (`de`) translation, and retained/QoS-1 publishing that survives a remote
+> broker restart.
+>
+> On top of the raw station data it also derives extra aggregates **inside
+> WeeWX**, computed straight from the archive database on every archive record.
+> Because they come from the authoritative database they are exact and survive a
+> restart, and Home Assistant needs no `statistics`/`utility_meter` helper
+> entities — which would otherwise stall when the station reports no change during
+> long dry spells:
+>
+> - `daySunshineDur` — sunshine hours accumulated since local midnight (derived
+>   from the per-interval `sunshineDur` of the
+>   [weewx-sunrainduration](https://github.com/WernerKr/weewx-sunrainduration)
+>   add-on, when installed).
+> - `hourRain` / `rain24` — rolling rainfall totals over the trailing 1 h / 24 h.
+> - `dayET` — evapotranspiration accumulated since local midnight.
+> - `eventRain` — rainfall of the most recent shower, where consecutive showers
+>   count as one event until a dry gap of ≥ 6 h (the Minimum Inter-event Time)
+>   separates them. Companion `eventRainStart` / `eventRainEnd` timestamps and
+>   `eventRainDuration` (minutes) bracket that shower.
 >
 > **Install this fork:**
 > `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`

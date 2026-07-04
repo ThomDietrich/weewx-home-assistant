@@ -14,6 +14,28 @@ eventRain:
     icon: "mdi:weather-pouring"
     name: "Event Rainfall"
 
+eventRainStart:
+  convert_lambda: "localtime_to_iso"
+  metadata:
+    device_class: "timestamp"
+    icon: "mdi:clock-start"
+    name: "Event Rain Start Time"
+
+eventRainEnd:
+  convert_lambda: "localtime_to_iso"
+  metadata:
+    device_class: "timestamp"
+    icon: "mdi:clock-end"
+    name: "Event Rain End Time"
+
+eventRainDuration:
+  metadata:
+    device_class: "duration"
+    icon: "mdi:timer"
+    name: "Event Rain Duration"
+    suggested_display_precision: 0
+    unit_of_measurement: "min"
+
 THSW:
   metadata:
     device_class: "temperature"

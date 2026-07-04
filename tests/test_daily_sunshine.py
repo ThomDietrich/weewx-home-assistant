@@ -54,7 +54,13 @@ def test_augment_db_derived_adds_all_aggregates():
         sums={"sunshine": 18000.0, "hourRain": 0.02, "rain24": 0.5, "dayET": 0.1},
         event_rows=[(dt - 1000, 0.1), (dt - 500, 0.2)],  # one contiguous event
     )
-    record = {"dateTime": dt, DAILY_SUNSHINE_SOURCE: 240.0, "ET": 0.01, "usUnits": 1}
+    record = {
+        "dateTime": dt,
+        DAILY_SUNSHINE_SOURCE: 240.0,
+        "ET": 0.01,
+        "interval": 5,
+        "usUnits": 1,
+    }
     filtered = {"ET": 0.01, "usUnits": 1}
 
     Controller._augment_db_derived(_stub(mgr), record, filtered)
@@ -64,6 +70,10 @@ def test_augment_db_derived_adds_all_aggregates():
     assert filtered["rain24"] == pytest.approx(0.5)
     assert filtered["dayET"] == pytest.approx(0.1)
     assert filtered["eventRain"] == pytest.approx(0.3)  # 0.1 + 0.2, contiguous
+    assert filtered["eventRainStart"] == dt - 1000
+    assert filtered["eventRainEnd"] == dt - 500
+    # span (500 s) + one 5-min archive interval (300 s), in minutes
+    assert filtered["eventRainDuration"] == pytest.approx((500 + 300) / 60)
 
 
 def test_augment_db_derived_without_sunshine_source():
@@ -79,6 +89,7 @@ def test_augment_db_derived_without_sunshine_source():
     assert filtered["hourRain"] == 0.0
     assert filtered["dayET"] == 0.0
     assert filtered["eventRain"] == 0.0
+    assert "eventRainStart" not in filtered  # no event -> no timestamps
 
 
 def test_augment_db_derived_null_sums_are_zero():
@@ -98,18 +109,30 @@ def test_event_rain_only_most_recent_event():
     dt = 1_000_000
     # Old event (0.5) then a >6 h dry gap, then the current event (0.3 + 0.4).
     rows = [(dt - 30000, 0.5), (dt - 100, 0.3), (dt - 50, 0.4)]
-    total = Controller._compute_event_rain(_FakeManager(event_rows=rows), "archive", dt)
+    total, start, end = Controller._compute_event_rain(
+        _FakeManager(event_rows=rows), "archive", dt
+    )
     assert total == pytest.approx(0.7)  # 30000 s > 21600 s (6 h) -> old event excluded
+    assert start == dt - 100  # event begins at the first record after the gap
+    assert end == dt - 50
 
 
 def test_event_rain_merges_within_gap():
     dt = 1_000_000
     # All within 6 h of each other -> one event.
     rows = [(dt - 10000, 0.2), (dt - 5000, 0.3), (dt - 100, 0.5)]
-    total = Controller._compute_event_rain(_FakeManager(event_rows=rows), "archive", dt)
+    total, start, end = Controller._compute_event_rain(
+        _FakeManager(event_rows=rows), "archive", dt
+    )
     assert total == pytest.approx(1.0)
+    assert start == dt - 10000
+    assert end == dt - 100
 
 
 def test_event_rain_empty_is_zero():
-    total = Controller._compute_event_rain(_FakeManager(event_rows=[]), "archive", 1000)
+    total, start, end = Controller._compute_event_rain(
+        _FakeManager(event_rows=[]), "archive", 1000
+    )
     assert total == 0.0
+    assert start is None
+    assert end is None
