@@ -11,7 +11,7 @@ ET:
 eventRain:
   metadata:
     device_class: "precipitation"
-    icon: "mdi:weather-pouring"
+    icon: "mdi:cup-water"
     name: "Event Rainfall"
 
 eventRainStart:
@@ -196,6 +196,34 @@ daySunshineDur:
     suggested_display_precision: 2
     unit_of_measurement: "h"
 
+dayMaxOutTemp:
+  metadata:
+    device_class: "temperature"
+    icon: "mdi:thermometer-high"
+    name: "Daily Maximum Outdoor Temperature"
+    state_class: "measurement"
+
+dayMaxOutTempTime:
+  convert_lambda: "localtime_to_iso"
+  metadata:
+    device_class: "timestamp"
+    icon: "mdi:clock-outline"
+    name: "Daily Maximum Temperature Time"
+
+dayMinOutTemp:
+  metadata:
+    device_class: "temperature"
+    icon: "mdi:thermometer-low"
+    name: "Daily Minimum Outdoor Temperature"
+    state_class: "measurement"
+
+dayMinOutTempTime:
+  convert_lambda: "localtime_to_iso"
+  metadata:
+    device_class: "timestamp"
+    icon: "mdi:clock-outline"
+    name: "Daily Minimum Temperature Time"
+
 dewpoint:
   metadata:
     device_class: "temperature"
@@ -311,6 +339,7 @@ hourRain:
     device_class: "precipitation"
     icon: "mdi:cup-water"
     name: "Hourly Rainfall"
+    state_class: "measurement"
 
 humidex:
   metadata:
@@ -547,6 +576,7 @@ rain24:
     device_class: "precipitation"
     icon: "mdi:cup-water"
     name: "24-Hour Rainfall"
+    state_class: "measurement"
 
 rainDur:
   metadata:

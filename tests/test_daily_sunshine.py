@@ -18,14 +18,17 @@ class _FakeManager:
 
     table_name = "archive"
 
-    def __init__(self, sums=None, event_rows=None):
+    def __init__(self, sums=None, event_rows=None, extremes=None):
         self._sums = sums or {}
         self._event_rows = event_rows or []
+        self._extremes = extremes or {}
 
     def getSql(self, sql, args):
         start, end = args
         if "sunshineDur" in sql:
             return (self._sums.get("sunshine"),)
+        if "outTemp" in sql:
+            return self._extremes.get("max" if "DESC" in sql else "min")
         if "SUM(ET)" in sql:
             return (self._sums.get("dayET"),)
         if "SUM(rain)" in sql:
@@ -45,6 +48,7 @@ def _stub(manager):
     binder = SimpleNamespace(get_manager=lambda binding: manager)
     stub = SimpleNamespace(engine=SimpleNamespace(db_binder=binder))
     stub._compute_event_rain = Controller._compute_event_rain
+    stub._day_extreme = Controller._day_extreme
     return stub
 
 
@@ -53,6 +57,7 @@ def test_augment_db_derived_adds_all_aggregates():
     mgr = _FakeManager(
         sums={"sunshine": 18000.0, "hourRain": 0.02, "rain24": 0.5, "dayET": 0.1},
         event_rows=[(dt - 1000, 0.1), (dt - 500, 0.2)],  # one contiguous event
+        extremes={"max": (25.0, dt - 3600), "min": (12.0, dt - 7200)},
     )
     record = {
         "dateTime": dt,
@@ -74,6 +79,10 @@ def test_augment_db_derived_adds_all_aggregates():
     assert filtered["eventRainEnd"] == dt - 500
     # span (500 s) + one 5-min archive interval (300 s), in minutes
     assert filtered["eventRainDuration"] == pytest.approx((500 + 300) / 60)
+    assert filtered["dayMaxOutTemp"] == 25.0
+    assert filtered["dayMaxOutTempTime"] == dt - 3600
+    assert filtered["dayMinOutTemp"] == 12.0
+    assert filtered["dayMinOutTempTime"] == dt - 7200
 
 
 def test_augment_db_derived_without_sunshine_source():
@@ -136,3 +145,21 @@ def test_event_rain_empty_is_zero():
     assert total == 0.0
     assert start is None
     assert end is None
+
+
+def test_day_extreme_returns_value_and_time():
+    dt = 1_000_000
+    mgr = _FakeManager(extremes={"max": (25.0, dt - 3600), "min": (12.0, dt - 7200)})
+    assert Controller._day_extreme(mgr, "archive", dt - 86400, dt, True) == (
+        25.0,
+        dt - 3600,
+    )
+    assert Controller._day_extreme(mgr, "archive", dt - 86400, dt, False) == (
+        12.0,
+        dt - 7200,
+    )
+
+
+def test_day_extreme_none_when_empty():
+    mgr = _FakeManager(extremes={})
+    assert Controller._day_extreme(mgr, "archive", 0, 1000, True) == (None, None)

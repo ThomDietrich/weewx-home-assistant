@@ -40,6 +40,8 @@ for availability messages.
 >   count as one event until a dry gap of ≥ 6 h (the Minimum Inter-event Time)
 >   separates them. Companion `eventRainStart` / `eventRainEnd` timestamps and
 >   `eventRainDuration` (minutes) bracket that shower.
+> - `dayMaxOutTemp` / `dayMinOutTemp` — today's high and low outdoor temperature,
+>   each with the time it occurred (`dayMaxOutTempTime` / `dayMinOutTempTime`).
 >
 > **Install this fork:**
 > `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`

@@ -111,6 +111,22 @@ daySunshineDur:
   metadata:
     name: "Sonnenscheindauer (Tag)"
 
+dayMaxOutTemp:
+  metadata:
+    name: "Außentemperatur Tagesmaximum"
+
+dayMaxOutTempTime:
+  metadata:
+    name: "Außentemperatur Tagesmaximum Zeitpunkt"
+
+dayMinOutTemp:
+  metadata:
+    name: "Außentemperatur Tagesminimum"
+
+dayMinOutTempTime:
+  metadata:
+    name: "Außentemperatur Tagesminimum Zeitpunkt"
+
 dewpoint:
   metadata:
     name: "Taupunkt"

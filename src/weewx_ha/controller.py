@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 # getStandardUnitType yields the correct unit for discovery.
 for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
     weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
+for _obs in ("dayMaxOutTemp", "dayMinOutTemp"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_temperature")
 
 # TODO Add command topics to control configuration settings
 
@@ -329,8 +331,10 @@ class Controller(StdService):
           - eventRain: rainfall of the most recent event (events separated by a
             >= 6 h dry period, the Minimum Inter-event Time), with eventRainStart,
             eventRainEnd (timestamps) and eventRainDuration (minutes).
-        Rain/ET values stay in the record's unit system; to_std_system converts
-        them (US inch -> mm) downstream. No-op on failure (logged).
+          - dayMaxOutTemp / dayMinOutTemp: today's high/low outdoor temperature,
+            each with the time it occurred (dayMaxOutTempTime / dayMinOutTempTime).
+        Rain/ET/temperature values stay in the record's unit system;
+        to_std_system converts them downstream. No-op on failure (logged).
         """
         dt = record.get("dateTime")
         if dt is None:
@@ -338,6 +342,7 @@ class Controller(StdService):
         try:
             manager = self.engine.db_binder.get_manager(ARCHIVE_DATA_BINDING)
             table = manager.table_name
+            day_start = startOfDay(dt)
 
             def _sum(column: str, start: float) -> float:
                 row = manager.getSql(
@@ -349,11 +354,11 @@ class Controller(StdService):
 
             if record.get(DAILY_SUNSHINE_SOURCE) is not None:
                 filtered[DAILY_SUNSHINE_KEY] = (
-                    _sum(DAILY_SUNSHINE_SOURCE, startOfDay(dt)) / 3600.0
+                    _sum(DAILY_SUNSHINE_SOURCE, day_start) / 3600.0
                 )
             filtered["hourRain"] = _sum("rain", dt - HOUR_S)
             filtered["rain24"] = _sum("rain", dt - DAY_S)
-            filtered["dayET"] = _sum("ET", startOfDay(dt))
+            filtered["dayET"] = _sum("ET", day_start)
             event_total, event_start, event_end = self._compute_event_rain(
                 manager, table, dt
             )
@@ -365,6 +370,14 @@ class Controller(StdService):
                 filtered["eventRainDuration"] = (
                     event_end - event_start + interval_s
                 ) / 60.0
+            hi_val, hi_time = self._day_extreme(manager, table, day_start, dt, True)
+            if hi_val is not None:
+                filtered["dayMaxOutTemp"] = hi_val
+                filtered["dayMaxOutTempTime"] = hi_time
+            lo_val, lo_time = self._day_extreme(manager, table, day_start, dt, False)
+            if lo_val is not None:
+                filtered["dayMinOutTemp"] = lo_val
+                filtered["dayMinOutTempTime"] = lo_time
         except Exception:
             logger.error("Failed to compute DB-derived aggregates", exc_info=True)
 
@@ -398,6 +411,26 @@ class Controller(StdService):
             total += recs[i - 1][1]
             start = recs[i - 1][0]
         return total, start, end
+
+    @staticmethod
+    def _day_extreme(
+        manager, table: str, day_start: float, dt: float, descending: bool
+    ):
+        """Return ``(value, time)`` of today's outTemp extreme (max if descending).
+
+        ``time`` is the epoch timestamp of the record holding that extreme.
+        Returns ``(None, None)`` when the day has no usable outTemp readings.
+        """
+        order = "DESC" if descending else "ASC"
+        row = manager.getSql(
+            f"SELECT outTemp, dateTime FROM {table} "
+            "WHERE dateTime > ? AND dateTime <= ? AND outTemp IS NOT NULL "
+            f"ORDER BY outTemp {order}, dateTime ASC LIMIT 1",
+            (day_start, dt),
+        )
+        if row and row[0] is not None:
+            return row[0], row[1]
+        return None, None
 
     def shutDown(self):
         """Shutdown the controller.
