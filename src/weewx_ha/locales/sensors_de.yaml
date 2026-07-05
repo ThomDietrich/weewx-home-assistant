@@ -127,6 +127,14 @@ dayMinOutTempTime:
   metadata:
     name: "Außentemperatur Tagesminimum Zeitpunkt"
 
+dayMaxWindGust:
+  metadata:
+    name: "Böengeschwindigkeit Tagesmaximum"
+
+dayMaxWindGustTime:
+  metadata:
+    name: "Böengeschwindigkeit Tagesmaximum Zeitpunkt"
+
 dewpoint:
   metadata:
     name: "Taupunkt"

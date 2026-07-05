@@ -42,6 +42,8 @@ for availability messages.
 >   `eventRainDuration` (minutes) bracket that shower.
 > - `dayMaxOutTemp` / `dayMinOutTemp` — today's high and low outdoor temperature,
 >   each with the time it occurred (`dayMaxOutTempTime` / `dayMinOutTempTime`).
+> - `dayMaxWindGust` — today's strongest wind gust, with the time it occurred
+>   (`dayMaxWindGustTime`).
 >
 > **Install this fork:**
 > `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`

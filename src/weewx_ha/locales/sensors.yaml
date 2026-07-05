@@ -224,6 +224,20 @@ dayMinOutTempTime:
     icon: "mdi:clock-outline"
     name: "Daily Minimum Temperature Time"
 
+dayMaxWindGust:
+  metadata:
+    device_class: "wind_speed"
+    icon: "mdi:weather-windy"
+    name: "Daily Maximum Wind Gust"
+    state_class: "measurement"
+
+dayMaxWindGustTime:
+  convert_lambda: "localtime_to_iso"
+  metadata:
+    device_class: "timestamp"
+    icon: "mdi:clock-outline"
+    name: "Daily Maximum Wind Gust Time"
+
 dewpoint:
   metadata:
     device_class: "temperature"

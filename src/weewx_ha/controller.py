@@ -31,6 +31,7 @@ for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
     weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 for _obs in ("dayMaxOutTemp", "dayMinOutTemp"):
     weewx.units.obs_group_dict.setdefault(_obs, "group_temperature")
+weewx.units.obs_group_dict.setdefault("dayMaxWindGust", "group_speed")
 
 # TODO Add command topics to control configuration settings
 
@@ -333,7 +334,9 @@ class Controller(StdService):
             eventRainEnd (timestamps) and eventRainDuration (minutes).
           - dayMaxOutTemp / dayMinOutTemp: today's high/low outdoor temperature,
             each with the time it occurred (dayMaxOutTempTime / dayMinOutTempTime).
-        Rain/ET/temperature values stay in the record's unit system;
+          - dayMaxWindGust: today's strongest wind gust, with its time
+            (dayMaxWindGustTime).
+        Rain/ET/temperature/wind values stay in the record's unit system;
         to_std_system converts them downstream. No-op on failure (logged).
         """
         dt = record.get("dateTime")
@@ -378,6 +381,12 @@ class Controller(StdService):
             if lo_val is not None:
                 filtered["dayMinOutTemp"] = lo_val
                 filtered["dayMinOutTempTime"] = lo_time
+            gust_val, gust_time = self._day_extreme(
+                manager, table, day_start, dt, True, "windGust"
+            )
+            if gust_val is not None:
+                filtered["dayMaxWindGust"] = gust_val
+                filtered["dayMaxWindGustTime"] = gust_time
         except Exception:
             logger.error("Failed to compute DB-derived aggregates", exc_info=True)
 
@@ -414,18 +423,23 @@ class Controller(StdService):
 
     @staticmethod
     def _day_extreme(
-        manager, table: str, day_start: float, dt: float, descending: bool
+        manager,
+        table: str,
+        day_start: float,
+        dt: float,
+        descending: bool,
+        column: str = "outTemp",
     ):
-        """Return ``(value, time)`` of today's outTemp extreme (max if descending).
+        """Return ``(value, time)`` of today's ``column`` extreme (max if descending).
 
         ``time`` is the epoch timestamp of the record holding that extreme.
-        Returns ``(None, None)`` when the day has no usable outTemp readings.
+        Returns ``(None, None)`` when the day has no usable ``column`` readings.
         """
         order = "DESC" if descending else "ASC"
         row = manager.getSql(
-            f"SELECT outTemp, dateTime FROM {table} "
-            "WHERE dateTime > ? AND dateTime <= ? AND outTemp IS NOT NULL "
-            f"ORDER BY outTemp {order}, dateTime ASC LIMIT 1",
+            f"SELECT {column}, dateTime FROM {table} "
+            f"WHERE dateTime > ? AND dateTime <= ? AND {column} IS NOT NULL "
+            f"ORDER BY {column} {order}, dateTime ASC LIMIT 1",
             (day_start, dt),
         )
         if row and row[0] is not None:

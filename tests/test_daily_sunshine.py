@@ -27,8 +27,9 @@ class _FakeManager:
         start, end = args
         if "sunshineDur" in sql:
             return (self._sums.get("sunshine"),)
-        if "outTemp" in sql:
-            return self._extremes.get("max" if "DESC" in sql else "min")
+        if "outTemp" in sql or "windGust" in sql:
+            col = "windGust" if "windGust" in sql else "outTemp"
+            return self._extremes.get(f"{col}_{'max' if 'DESC' in sql else 'min'}")
         if "SUM(ET)" in sql:
             return (self._sums.get("dayET"),)
         if "SUM(rain)" in sql:
@@ -57,7 +58,11 @@ def test_augment_db_derived_adds_all_aggregates():
     mgr = _FakeManager(
         sums={"sunshine": 18000.0, "hourRain": 0.02, "rain24": 0.5, "dayET": 0.1},
         event_rows=[(dt - 1000, 0.1), (dt - 500, 0.2)],  # one contiguous event
-        extremes={"max": (25.0, dt - 3600), "min": (12.0, dt - 7200)},
+        extremes={
+            "outTemp_max": (25.0, dt - 3600),
+            "outTemp_min": (12.0, dt - 7200),
+            "windGust_max": (48.0, dt - 1800),
+        },
     )
     record = {
         "dateTime": dt,
@@ -83,6 +88,8 @@ def test_augment_db_derived_adds_all_aggregates():
     assert filtered["dayMaxOutTempTime"] == dt - 3600
     assert filtered["dayMinOutTemp"] == 12.0
     assert filtered["dayMinOutTempTime"] == dt - 7200
+    assert filtered["dayMaxWindGust"] == 48.0
+    assert filtered["dayMaxWindGustTime"] == dt - 1800
 
 
 def test_augment_db_derived_without_sunshine_source():
@@ -149,7 +156,13 @@ def test_event_rain_empty_is_zero():
 
 def test_day_extreme_returns_value_and_time():
     dt = 1_000_000
-    mgr = _FakeManager(extremes={"max": (25.0, dt - 3600), "min": (12.0, dt - 7200)})
+    mgr = _FakeManager(
+        extremes={
+            "outTemp_max": (25.0, dt - 3600),
+            "outTemp_min": (12.0, dt - 7200),
+            "windGust_max": (48.0, dt - 1800),
+        }
+    )
     assert Controller._day_extreme(mgr, "archive", dt - 86400, dt, True) == (
         25.0,
         dt - 3600,
@@ -158,6 +171,9 @@ def test_day_extreme_returns_value_and_time():
         12.0,
         dt - 7200,
     )
+    assert Controller._day_extreme(
+        mgr, "archive", dt - 86400, dt, True, "windGust"
+    ) == (48.0, dt - 1800)
 
 
 def test_day_extreme_none_when_empty():
