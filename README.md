@@ -16,40 +16,36 @@ for availability messages.
 > [!NOTE]
 > **This is a fork.** It builds on
 > [konikvranik's rework](https://github.com/konikvranik/weewx-home-assistant) of
-> the original and, on top of that base, ships a hardened and tidied sensor set:
-> long-term statistics (`state_class`/`device_class` on every sensor), raw values
-> on the wire (display rounding via `suggested_display_precision`, so your
-> database keeps full precision), clearer and unambiguous sensor names, a full
-> German (`de`) translation, and retained/QoS-1 publishing that survives a remote
-> broker restart.
+> the original and hardens the sensor set on top of that base:
 >
-> On top of the raw station data it also derives extra aggregates **inside
-> WeeWX**, computed straight from the archive database on every archive record.
-> Because they come from the authoritative database they are exact and survive a
-> restart, and Home Assistant needs no `statistics`/`utility_meter` helper
-> entities — which would otherwise stall when the station reports no change during
-> long dry spells:
+> - **Long-term-statistics ready** — `state_class`/`device_class` on every sensor.
+> - **Raw values on the wire** — display rounding via `suggested_display_precision`,
+>   so your database keeps full precision.
+> - **Clear, unambiguous sensor names**, plus a full **German (`de`) translation**.
+> - **Retained, QoS-1 publishing** that survives a remote broker restart.
 >
-> - `daySunshineDur` — sunshine hours accumulated since local midnight (derived
->   from the per-interval `sunshineDur` of the
+> It also derives extra aggregates **inside WeeWX**, computed straight from the
+> archive database on every archive record. Because they come from the
+> authoritative database they are exact and restart-safe, so Home Assistant needs
+> no `statistics`/`utility_meter` helpers (which stall when the station reports no
+> change during long dry spells):
+>
+> - **Rolling rainfall** — `hourRain` / `rain24`, totals over the trailing 1 h / 24 h.
+> - **Rain event** — `eventRain`, the rainfall of the most recent shower (consecutive
+>   showers count as one event until a ≥ 6 h dry gap, the Minimum Inter-event Time),
+>   bracketed by `eventRainStart` / `eventRainEnd` / `eventRainDuration`.
+> - **Daily totals** — `dayET` (evapotranspiration) and `daySunshineDur` (sunshine
+>   hours, from the
 >   [weewx-sunrainduration](https://github.com/WernerKr/weewx-sunrainduration)
->   add-on, when installed).
-> - `hourRain` / `rain24` — rolling rainfall totals over the trailing 1 h / 24 h.
-> - `dayET` — evapotranspiration accumulated since local midnight.
-> - `eventRain` — rainfall of the most recent shower, where consecutive showers
->   count as one event until a dry gap of ≥ 6 h (the Minimum Inter-event Time)
->   separates them. Companion `eventRainStart` / `eventRainEnd` timestamps and
->   `eventRainDuration` (minutes) bracket that shower.
-> - `dayMaxOutTemp` / `dayMinOutTemp` — today's high and low outdoor temperature,
->   each with the time it occurred (`dayMaxOutTempTime` / `dayMinOutTempTime`).
-> - `dayMaxWindGust` — today's strongest wind gust, with the time it occurred
->   (`dayMaxWindGustTime`).
+>   add-on when installed), each accumulated since local midnight.
+> - **Daily extremes with their timestamp** — `dayMaxOutTemp` / `dayMinOutTemp` and
+>   `dayMaxWindGust`, each paired with the time it occurred (`…Time`).
 >
 > **Install this fork:**
 > `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`
 >
 > **Staying current:** the work lives on the `consolidated` branch — re-run the
-> install command to update, and check the commit history to see what changed.
+> install command to update, and see the commit history for what changed.
 
 Key Features:
 
