@@ -163,16 +163,30 @@ class Controller(StdService):
         client.on_subscribe = self.on_mqtt_subscribe
         client.on_unsubscribe = self.on_mqtt_unsubscribe
         client.on_disconnect = self.on_mqtt_disconnect
+        client.on_connect_fail = self.on_mqtt_connect_fail
         if mqtt_config.use_tls:
             client.tls_set_context(mqtt_config.tls.context)
         if mqtt_config.username and mqtt_config.password:
             client.username_pw_set(
                 mqtt_config.username, mqtt_config.password.get_secret_value()
             )
-        client.loop_start()
-        # Set the last will and testament
+        # Set the last will and testament. The will travels inside the CONNECT
+        # packet, so it has to be registered before the connection is made.
         client.will_set(self.availability_topic, "offline", qos=1, retain=True)
-        client.connect(mqtt_config.hostname, mqtt_config.port, mqtt_config.keep_alive)
+        # Hand the broker address to the client *before* starting the network
+        # thread. loop_start() runs loop_forever(retry_first_connection=True),
+        # which immediately calls reconnect() -- and reconnect() raises
+        # ValueError("Invalid host.") while no host is set. loop_forever only
+        # catches OSError, so that ValueError killed the network thread and the
+        # client never connected or reconnected afterwards. connect_async()
+        # records host/port/keep-alive and arms MQTT_CS_CONNECT_ASYNC, so the
+        # thread performs the connect itself and retries with exponential
+        # backoff for as long as the broker is unreachable (instead of raising
+        # out of WeeWX service construction on the very first attempt).
+        client.connect_async(
+            mqtt_config.hostname, mqtt_config.port, mqtt_config.keep_alive
+        )
+        client.loop_start()
         return client
 
     def on_mqtt_connect(
