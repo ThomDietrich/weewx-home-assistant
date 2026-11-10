@@ -23,8 +23,17 @@ METRICWX = int(UnitSystem.METRICWX)
 INCH_TO_MM = 25.4
 
 # Every rain-group observation this extension publishes that WeeWX itself does
-# not register: the DB-derived aggregates and the station's cumulative ET.
-RAIN_GROUP_KEYS = ("hourRain", "rain24", "eventRain", "dayET", "monthET", "yearET")
+# not register: the DB-derived aggregates, the station's cumulative ET totals
+# and the weekly rain accumulator.
+RAIN_GROUP_KEYS = (
+    "dayET",
+    "eventRain",
+    "hourRain",
+    "monthET",
+    "rain24",
+    "weekRain",
+    "yearET",
+)
 
 
 @pytest.mark.parametrize("key", RAIN_GROUP_KEYS)
