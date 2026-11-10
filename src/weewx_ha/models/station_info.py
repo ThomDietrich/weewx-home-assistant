@@ -1,13 +1,10 @@
 """Defines the model for describing a weather station device."""
 
 # Standard Python Libraries
-import logging
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Third-Party Libraries
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-logger = logging.getLogger(__name__)
 
 
 class StationInfo(BaseModel):
