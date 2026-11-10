@@ -126,10 +126,16 @@ class ConfigPublisher:
                 logger.debug(f"Discovered new measurement: {key}")
                 found_new_measurements = True
                 config = dict(get_key_config(key))
-                # Unit metadata is underlaid with the metadata from the key
-                config["metadata"] = get_unit_metadata(
-                    key, self.unit_system
-                ) | config.get("metadata", {})
+                # Binary sensors and keys the catalogue declares unit-less
+                # (enums, cardinal directions, timestamps) carry no unit, so
+                # skip the lookup and the missing-unit warning it would log
+                unitless = config.pop("unitless", False)
+                is_sensor = config.get("integration", "sensor") == "sensor"
+                if is_sensor and not unitless:
+                    # Unit metadata is underlaid with the metadata from the key
+                    config["metadata"] = get_unit_metadata(
+                        key, self.unit_system
+                    ) | config.get("metadata", {})
                 # Publish the entry only once it is complete: publish_discovery
                 # runs on the other worker thread and must never observe a
                 # configuration that still lacks its metadata.
@@ -168,6 +174,7 @@ class ConfigPublisher:
                         f"Discovered derived measurement: {sensor_name} from source {source_key}"
                     )
                     config = dict(get_key_config(sensor_name))
+                    config.pop("unitless", None)
                     # Derived sensors typically don't need unit metadata since
                     # they have custom conversion, but an absent
                     # unit_of_measurement is spelled out as None
