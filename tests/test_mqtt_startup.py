@@ -45,9 +45,10 @@ def _mqtt_config(**overrides) -> MQTTConfig:
 def mqtt_client():
     """Build an MQTT client through the controller, with paho mocked out."""
     controller = Controller.__new__(Controller)
-    controller.availability_topic = "weather/status"
     with patch.object(mqtt, "Client", return_value=MagicMock()) as client_class:
-        client = Controller.init_mqtt_client(controller, _mqtt_config())
+        client = Controller.init_mqtt_client(
+            controller, _mqtt_config(), "weather/status"
+        )
     assert client is client_class.return_value
     return client
 

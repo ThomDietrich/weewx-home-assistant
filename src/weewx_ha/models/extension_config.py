@@ -61,6 +61,9 @@ class ExtensionConfig(BaseModel):
         extension_config = config_dict.get(key, {})
         try:
             return cls(**extension_config)
-        except ValidationError as e:
-            logger.error(f"Configuration validation error: {e}")
-            raise e
+        except ValidationError:
+            # Deliberately silent: the Controller logs this with the traceback
+            # and with the consequence for the user ("extension will not be
+            # loaded"), and reporting it here as well buried that message under
+            # a duplicate. A bare raise keeps the original traceback.
+            raise

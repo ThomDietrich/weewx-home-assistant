@@ -20,18 +20,24 @@ TX_BATTERY_STATUS_FIELDS = [
 class PacketPreprocessor:
     """Pre-process loop packets."""
 
-    def __init__(self):
-        """Initialize the pre-processor."""
-        pass
-
     def process_packet(self, packet: dict) -> dict:
         """Modify the packet before it is processed."""
-        logger.debug("Pre-processing packet")
         if "txBatteryStatus" in packet:
-            logger.debug("Processing txBatteryStatus")
-            txBatteryStatus = packet["txBatteryStatus"]
-            # txBatteryStatus is a bitmap.  Break bits into individual fields.
+            bitmap = packet.pop("txBatteryStatus")
+            if bitmap is None:
+                # The station reported no battery status. That says nothing
+                # about the transmitters, so publish nothing for them rather
+                # than guessing -- and never raise: process_packet runs on a
+                # worker thread whose completion handler answers an exception
+                # by logging and returning, which would discard every
+                # measurement in the packet along with the battery fields.
+                logger.debug("No txBatteryStatus reading in this packet")
+                return packet
+            # txBatteryStatus is a bitmap, one bit per transmitter. Shift the
+            # bit down to 0/1 instead of masking it in place: the catalogue
+            # declares these fields as binary sensors matching payload_on: 1,
+            # so a masked bit would publish its weight (2, 4, ... 128) and only
+            # batteryStatusISS on bit 0 would ever read as low.
             for i, field in enumerate(TX_BATTERY_STATUS_FIELDS):
-                packet[field] = txBatteryStatus & (1 << i)
-            del packet["txBatteryStatus"]
+                packet[field] = (bitmap >> i) & 1
         return packet

@@ -97,6 +97,20 @@ class Controller(StdService):
         logger.debug(
             f"Initializing extension with configuration key {EXTENSION_CONFIG_KEY}"
         )
+        # Declare the disabled shape up front. WeeWX keeps a service whose
+        # constructor returned early and still calls shutDown on it when the
+        # engine stops, so an unusable configuration must leave the instance
+        # with every attribute the lifecycle methods read -- otherwise a config
+        # mistake resurfaces as an AttributeError long after its own report has
+        # scrolled past. Assigning here rather than in the except branch also
+        # keeps one declared type per attribute.
+        self.config: ExtensionConfig | None = None
+        self.availability_topic: str | None = None
+        self.mqtt_client: mqtt.Client | None = None
+        self.executor: ThreadPoolExecutor | None = None
+        self.packet_preprocessor: PacketPreprocessor | None = None
+        self.config_publisher: ConfigPublisher | None = None
+        self.state_publisher: StatePublisher | None = None
         try:
             self.config = ExtensionConfig.from_config_dict(
                 config_dict, EXTENSION_CONFIG_KEY
@@ -124,8 +138,10 @@ class Controller(StdService):
             overrides["enums"] = self.config.enums
         set_config_overrides(overrides if overrides else None)
 
-        self.availability_topic: str = f"{self.config.state_topic_prefix}/status"
-        self.mqtt_client: mqtt.Client = self.init_mqtt_client(self.config.mqtt)
+        self.availability_topic = f"{self.config.state_topic_prefix}/status"
+        self.mqtt_client = self.init_mqtt_client(
+            self.config.mqtt, self.availability_topic
+        )
 
         # Thread pool for managing tasks
         self.executor = ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
@@ -155,7 +171,7 @@ class Controller(StdService):
         self.bind(NEW_LOOP_PACKET, self.on_weewx_loop)
         self.bind(NEW_ARCHIVE_RECORD, self.on_weewx_archive)
 
-    def init_mqtt_client(self, mqtt_config: MQTTConfig):
+    def init_mqtt_client(self, mqtt_config: MQTTConfig, availability_topic: str):
         """Initialize the MQTT client."""
         logger.debug(
             "MQTT configuration: host=%s port=%s tls=%s user=%s",
@@ -181,7 +197,7 @@ class Controller(StdService):
             )
         # Set the last will and testament. The will travels inside the CONNECT
         # packet, so it has to be registered before the connection is made.
-        client.will_set(self.availability_topic, "offline", qos=1, retain=True)
+        client.will_set(availability_topic, "offline", qos=1, retain=True)
         # Hand the broker address to the client *before* starting the network
         # thread. loop_start() runs loop_forever(retry_first_connection=True),
         # which immediately calls reconnect() -- and reconnect() raises
@@ -202,6 +218,8 @@ class Controller(StdService):
         self, client: mqtt.Client, userdata, flags, reason_code, properties
     ):
         """Handle callback when the client attempts to connect to the server."""
+        if self.config is None or self.availability_topic is None:
+            return  # configuration was rejected; the extension is not loaded
         if reason_code == 0:
             logger.info("Connected to MQTT broker")
             logger.info("Publishing online availability")
@@ -211,9 +229,9 @@ class Controller(StdService):
             client.subscribe(f"{self.config.discovery_topic_prefix}/status", qos=1)
             # Re-publish discovery so entities survive broker/connection drops
             # (important for a remote MQTT link). On the very first connect the
-            # publishers may not be constructed yet and no measurements are known,
-            # so guard and skip -- discovery then follows from the first packet.
-            if getattr(self, "config_publisher", None) is not None:
+            # publishers are not constructed yet and no measurements are known,
+            # so skip -- discovery then follows from the first packet.
+            if self.config_publisher is not None and self.executor is not None:
                 future = self.executor.submit(self.config_publisher.publish_discovery)
                 future.add_done_callback(self.check_future_errors)
         else:
@@ -237,11 +255,13 @@ class Controller(StdService):
     def on_mqtt_message(self, client: mqtt.Client, userdata, msg):
         """Handle callback for when a PUBLISH message is received from the server."""
         logger.info(f"Received message on topic {msg.topic}: {msg.payload}")
+        if self.config is None or self.config_publisher is None:
+            return  # configuration was rejected; the extension is not loaded
         # Resend config on homeassistant birth
         if (
             msg.topic == f"{self.config.discovery_topic_prefix}/status"
             and msg.payload == b"online"
-            and getattr(self, "config_publisher", None) is not None
+            and self.executor is not None
         ):
             future = self.executor.submit(self.config_publisher.publish_discovery)
             future.add_done_callback(self.check_future_errors)
@@ -476,6 +496,12 @@ class Controller(StdService):
         """
         logger.warning("Shutdown requested")
 
+        if self.mqtt_client is None or self.executor is None:
+            # The configuration was rejected, so there is no broker
+            # connection and no worker pool to wind down.
+            logger.info("Extension was never loaded; nothing to shut down")
+            return
+
         logger.info("Publishing offline availability")
         message_info = self.mqtt_client.publish(
             self.availability_topic, "offline", qos=1, retain=True
@@ -484,7 +510,9 @@ class Controller(StdService):
             message_info.wait_for_publish(timeout=10)
             logger.info("Offline availability publication complete")
         except Exception as e:
-            logger.error(f"Error while publishing offline availability: {e}")
+            logger.error(
+                f"Error while publishing offline availability: {e}", exc_info=True
+            )
         # Shutdown the executor, allowing threads to complete pending work
         self.executor.shutdown(wait=True)
         self.mqtt_client.disconnect()  # Also stops the MQTT client loop
