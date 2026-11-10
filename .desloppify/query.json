@@ -1,0 +1,869 @@
+{
+  "command": "next",
+  "items": [
+    {
+      "id": "review::.::holistic::incomplete_migration::vestigial_time_zone_shim",
+      "confidence": "medium",
+      "detector": "review",
+      "file": ".",
+      "summary": "Unused StationInfo.time_zone/timezone alias remains and is still documented as a configurable option",
+      "detail": {
+        "holistic": true,
+        "dimension": "incomplete_migration",
+        "related_files": [
+          "src/weewx_ha/models/station_info.py",
+          "README.md",
+          "weewx-ha.conf.example"
+        ],
+        "evidence": [
+          "station_info.py:23-29 field description says 'Unused' and kept so existing configs keep validating, with a ZoneInfo validator and default_factory.",
+          "README.md:150 lists 'timezone = <default: UTC>' and weewx-ha.conf.example:24 suggests setting time_zone; nothing in src reads it.",
+          "tests/test_publish.py:30, test_discovery_race.py:50, test_unit_groups.py:109 still pass time_zone='UTC'."
+        ],
+        "suggestion": "Remove the field from README/example config and tests, and either drop it (with extra='forbid' tolerance via an ignored key) or mark it explicitly deprecated with a warning when set.",
+        "reasoning": "",
+        "summary_hash": "db656939"
+      },
+      "status": "open",
+      "kind": "issue",
+      "primary_command": "desloppify plan resolve \"review::.::holistic::incomplete_migration::vestigial_time_zone_shim\" --note \"<what you did>\" --confirm",
+      "queue_position": 1,
+      "plan_cluster": {
+        "name": "readme-timezone-correction",
+        "description": "Correct the one README line that still advertises the station timezone key whose plumbing commit 12d9498 on this branch already removed. Documentation only; the model field deliberately stays.",
+        "total_items": 1,
+        "action_steps": [
+          {
+            "title": "Mark the timezone key as accepted-but-ignored in README.md",
+            "detail": "README.md:150 (`timezone = <default: UTC>`, the last line of the [[station]] block at :146-150) is the only place that still mis-advertises the station timezone. Mark that key accepted-but-ignored there, reusing the wording already in the field description at src/weewx_ha/models/station_info.py:25-27 ('Unused. WeeWX timestamps are Unix epochs and are converted straight to UTC...'). Do NOT drop StationInfo.time_zone (src/weewx_ha/models/station_info.py:23-29): HEAD deliberately keeps the field, with alias='timezone' and populate_by_name=True at :16, so existing user configurations still validate -- which is also why the tests that pass time_zone (e.g. tests/test_publish.py:30) are correct as they stand. README text only, no model change.",
+            "effort": "trivial",
+            "issue_refs": [
+              "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "review::.::holistic::test_strategy::controller_event_paths_untested",
+      "confidence": "high",
+      "detector": "review",
+      "file": ".",
+      "summary": "Controller event handlers, init wiring, preprocessor, and config models have no tests",
+      "detail": {
+        "holistic": true,
+        "dimension": "test_strategy",
+        "related_files": [
+          "src/weewx_ha/controller.py",
+          "src/weewx_ha/preprocessor.py",
+          "src/weewx_ha/models/extension_config.py",
+          "src/weewx_ha/models/tls_config.py",
+          "src/weewx_ha/models/mqtt_config.py"
+        ],
+        "evidence": [
+          "grep of tests/ for PacketPreprocessor, ExtensionConfig, from_config_dict, TLSConfig, on_weewx_loop, on_mqtt_message returns nothing",
+          "Controller.__init__, on_mqtt_connect, on_mqtt_message, on_weewx_loop, on_weewx_archive, check_config_update and shutDown are never exercised; only init_mqtt_client and DB-derived helpers are"
+        ],
+        "suggestion": "Add tests for ExtensionConfig.from_config_dict (valid/invalid conf), TLSConfig validation, PacketPreprocessor, and Controller loop/archive/birth-message handling with a mocked MQTT client and executor.",
+        "reasoning": "",
+        "summary_hash": "754dd47a"
+      },
+      "status": "open",
+      "kind": "issue",
+      "primary_command": "desloppify plan resolve \"review::.::holistic::test_strategy::controller_event_paths_untested\" --note \"<what you did>\" --confirm",
+      "queue_position": 2,
+      "plan_cluster": {
+        "name": "from-config-dict-coverage",
+        "description": "Cover ExtensionConfig.from_config_dict on both outcomes in tests/, the one untested path this PR's lifecycle fix actually exercises. The wider integration harness and the catalogue guessing fallback are deferred to the follow-up PR.",
+        "total_items": 1,
+        "action_steps": [
+          {
+            "title": "Cover ExtensionConfig.from_config_dict on both outcomes",
+            "detail": "LINE CORRECTION: ExtensionConfig.from_config_dict is declared at src/weewx_ha/models/extension_config.py:56-66, but only its BODY, lines 61-66, is uncovered -- the decorator and signature execute at import time. `pipenv run pytest --cov=weewx_ha --cov-report=term-missing` reports that file at 77% with `61-66` missing. Add tests under tests/ for both outcomes: a valid HomeAssistant stanza returns an ExtensionConfig carrying the expected node_id and the METRICWX default from :48-50; an invalid one -- an unknown key suffices, since extra='forbid' is set at :19 -- raises ValidationError out of :65. ASSERTION CORRECTION from the sense-check: do NOT assert 'exactly one logger.error' here. from_config_dict contains exactly one logger.error, at :64, and the controller-init-lifecycle-contract cluster's duplicate-log step decides which of the two reports survives -- make this test assert the count that matches that decision. If the model's log goes, assert zero records from this module and put the single-log assertion in a Controller-level test instead, where the surviving logger.error at src/weewx_ha/controller.py:105-108 fires. Also cover `config_dict.get(key, {})` at :61: a config_dict with no HomeAssistant key must raise rather than silently return defaults.",
+            "effort": "small",
+            "issue_refs": [
+              "review::.::holistic::test_strategy::controller_event_paths_untested"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration",
+      "confidence": "high",
+      "detector": "dict_keys",
+      "file": "src/weewx_ha/config_publisher.py",
+      "summary": "Dict key \"integration\" read at line 130 but never written to `config`",
+      "detail": {
+        "kind": "phantom_read",
+        "key": "integration",
+        "line": 130,
+        "info": "Created at line 125 in process_packet() \u2014 will raise KeyError or return None via .get()"
+      },
+      "status": "open",
+      "kind": "issue",
+      "primary_command": "desloppify plan resolve \"dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration\" --note \"<what you did>\" --confirm",
+      "queue_position": 3
+    }
+  ],
+  "queue": {
+    "total": 3,
+    "mode": "execution"
+  },
+  "narrative": {
+    "phase": "early_momentum",
+    "headline": "Score 78.8/100 with 22 issues open. Keep the momentum going. (2 review work items \u2014 run `desloppify show review --status open`)",
+    "dimensions": {
+      "lowest_dimensions": [
+        {
+          "name": "Test strategy",
+          "strict": 58.0,
+          "failing": 1,
+          "impact": 0.0,
+          "subjective": true,
+          "impact_description": "re-review to improve"
+        },
+        {
+          "name": "Low elegance",
+          "strict": 66.0,
+          "failing": 0,
+          "impact": 0.0,
+          "subjective": true,
+          "impact_description": "re-review to improve"
+        },
+        {
+          "name": "Mid elegance",
+          "strict": 66.0,
+          "failing": 0,
+          "impact": 0.0,
+          "subjective": true,
+          "impact_description": "re-review to improve"
+        }
+      ],
+      "biggest_gap_dimensions": [],
+      "stagnant_dimensions": []
+    },
+    "actions": [
+      {
+        "type": "reorganize",
+        "detector": "cycles",
+        "count": 1,
+        "description": "1 cycles issues \u2014 break cycles by extracting shared code or using `desloppify move`",
+        "command": "desloppify show cycles --status open",
+        "impact": 0.0,
+        "dimension": "Security",
+        "priority": 1,
+        "lane": "restructure"
+      },
+      {
+        "type": "reorganize",
+        "detector": "facade",
+        "count": 2,
+        "description": "2 facade issues \u2014 flatten re-export facades or consolidate barrel files",
+        "command": "desloppify show facade --status open",
+        "impact": 0.0,
+        "dimension": "Code quality",
+        "priority": 2,
+        "lane": "restructure"
+      },
+      {
+        "type": "refactor",
+        "detector": "structural",
+        "count": 1,
+        "description": "1 structural work items \u2014 review large files \u2014 split only when responsibilities are clearly separable",
+        "command": "desloppify show structural --status open",
+        "impact": 0.0,
+        "dimension": "File health",
+        "priority": 3,
+        "lane": "refactor_0"
+      },
+      {
+        "type": "refactor",
+        "detector": "dict_keys",
+        "count": 2,
+        "description": "2 dict_keys work items \u2014 fix dict key mismatches \u2014 dead writes are likely dead code, schema drift suggests a typo or missed rename",
+        "command": "desloppify show dict_keys --status open",
+        "impact": 0.0,
+        "dimension": "Code quality",
+        "priority": 4,
+        "lane": "refactor_0"
+      },
+      {
+        "type": "refactor",
+        "detector": "review",
+        "count": 2,
+        "description": "2 review work items need investigation \u2014 run `desloppify show review --status open` to see them",
+        "command": "desloppify show review --status open",
+        "impact": 0.0,
+        "dimension": "Unknown",
+        "priority": 5,
+        "lane": "refactor_1"
+      },
+      {
+        "type": "manual_fix",
+        "detector": "smells",
+        "count": 9,
+        "description": "9 smells issues \u2014 inspect with `desloppify next` and fix manually",
+        "command": "desloppify show smells --status open",
+        "impact": 0.0,
+        "dimension": "Code quality",
+        "priority": 6,
+        "lane": "refactor_0"
+      },
+      {
+        "type": "manual_fix",
+        "detector": "global_mutable_config",
+        "count": 2,
+        "description": "2 global_mutable_config work items \u2014 refactor module-level mutable state \u2014 use explicit init functions or dependency injection",
+        "command": "desloppify show global_mutable_config --status open",
+        "impact": 0.0,
+        "dimension": "Code quality",
+        "priority": 7,
+        "lane": "refactor_0"
+      }
+    ],
+    "strategy": {
+      "fixer_leverage": {
+        "auto_fixable_count": 0,
+        "total_count": 26,
+        "coverage": 0.0,
+        "impact_ratio": 0.0,
+        "recommendation": "none"
+      },
+      "lanes": {
+        "restructure": {
+          "actions": [
+            1,
+            2
+          ],
+          "file_count": 2,
+          "total_impact": 0.0,
+          "automation": "manual",
+          "run_first": false
+        },
+        "refactor_0": {
+          "actions": [
+            3,
+            4,
+            6,
+            7
+          ],
+          "file_count": 4,
+          "total_impact": 0.0,
+          "automation": "manual",
+          "run_first": false
+        },
+        "refactor_1": {
+          "actions": [
+            5
+          ],
+          "file_count": 1,
+          "total_impact": 0.0,
+          "automation": "manual",
+          "run_first": false
+        }
+      },
+      "can_parallelize": false,
+      "hint": "Work through actions in priority order. Rescan after each fix to track progress. Review: 2 issue(s) \u2014 `desloppify show review --status open`."
+    },
+    "tools": {
+      "fixers": [],
+      "move": {
+        "available": true,
+        "relevant": true,
+        "reason": null,
+        "usage": "desloppify move <source> <dest> [--dry-run]"
+      },
+      "plan": {
+        "command": "desloppify plan",
+        "description": "Generate prioritized markdown cleanup plan"
+      },
+      "badge": {
+        "generated": true,
+        "in_readme": false,
+        "path": "scorecard.png",
+        "recommendation": "Add to README: <img src=\"scorecard.png\" width=\"100%\">"
+      }
+    },
+    "debt": {
+      "overall_gap": 0.0,
+      "wontfix_count": 41,
+      "worst_dimension": null,
+      "worst_gap": 0.0,
+      "trend": "stable"
+    },
+    "milestone": null,
+    "primary_action": {
+      "command": "desloppify show cycles --status open",
+      "description": "1 cycles issues \u2014 break cycles by extracting shared code or using `desloppify move`"
+    },
+    "why_now": "Work through actions in priority order. Rescan after each fix to track progress. Review: 2 issue(s) \u2014 `desloppify show review --status open`.",
+    "verification_step": {
+      "command": "desloppify scan",
+      "reason": "revalidate after changes"
+    },
+    "risk_flags": [
+      {
+        "type": "wontfix_gap",
+        "severity": "medium",
+        "message": "Strict/lenient gap is 0.0 pts with 41 wontfix issues"
+      }
+    ],
+    "strict_target": {
+      "target": 85.0,
+      "current": 78.8,
+      "gap": 6.2,
+      "state": "below",
+      "warning": null
+    },
+    "reminders": [
+      {
+        "type": "review_issues_pending",
+        "message": "2 review work item(s) need investigation. Run `desloppify show review --status open` to see the work queue.",
+        "command": "desloppify show review --status open",
+        "priority": 1,
+        "severity": "high"
+      },
+      {
+        "type": "zone_classification",
+        "message": "11 of 24 files classified as non-production (11 test). Override with `desloppify zone set <file> production` if any are misclassified.",
+        "command": "desloppify zone show",
+        "priority": 2,
+        "severity": "medium"
+      }
+    ],
+    "reminder_history": {
+      "zone_classification": 2,
+      "report_scores": 1,
+      "review_issues_pending": 1
+    }
+  },
+  "agent_notes": [
+    "Do NOT use `desloppify plan skip` unless the user explicitly asks you to skip an item.",
+    "If you cannot fix an item, report it and move to the next one.",
+    "For cluster items: if the autofix_hint finds 0 results, drill into individual issues with the primary_command."
+  ],
+  "plan": {
+    "active": true,
+    "focus": null,
+    "clusters": [
+      {
+        "name": "auto/initial-review",
+        "description": "Initial review of 20 unscored subjective dimensions",
+        "item_count": 0
+      },
+      {
+        "name": "preprocessor-battery-bitmap",
+        "description": "Rewrite the txBatteryStatus fan-out in src/weewx_ha/preprocessor.py so all eight battery fields publish 0/1 against the catalogue's payload_on: 1, guard a None bitmask, and clear the no-op scaffolding in the same 37-line file, behind a new regression test written to fail against current code first.",
+        "item_count": 5
+      },
+      {
+        "name": "controller-init-lifecycle-contract",
+        "description": "Make Controller construction and teardown consistent in src/weewx_ha/controller.py: on a rejected configuration initialise the attributes shutDown dereferences instead of returning half-built, construct both publishers before the MQTT loop starts so the two getattr probes can be deleted, and tidy the error reporting on that path in controller.py and models/extension_config.py.",
+        "item_count": 7
+      },
+      {
+        "name": "locale-cache-invalidation",
+        "description": "Give src/weewx_ha/utils.py a single configure(language, overrides) entry point that sets the locale_loader state and clears all four lazy caches, call it from the Controller in place of the two bare setters, and only then centralise the test reset fixture in tests/conftest.py.",
+        "item_count": 6
+      },
+      {
+        "name": "dead-code-and-residue-deletion",
+        "description": "Delete provably unreachable code inside src/weewx_ha: the two unit_system None guards in config_publisher.py and state_publisher.py, the three RuntimeError cache guards in utils.py, the redundant MQTT credential guard in controller.py, and the duplicated function-level import in config_publisher.py.",
+        "item_count": 6
+      },
+      {
+        "name": "from-config-dict-coverage",
+        "description": "Cover ExtensionConfig.from_config_dict on both outcomes in tests/, the one untested path this PR's lifecycle fix actually exercises. The wider integration harness and the catalogue guessing fallback are deferred to the follow-up PR.",
+        "item_count": 1
+      },
+      {
+        "name": "readme-timezone-correction",
+        "description": "Correct the one README line that still advertises the station timezone key whose plumbing commit 12d9498 on this branch already removed. Documentation only; the model field deliberately stays.",
+        "item_count": 1
+      }
+    ],
+    "total_ordered": 19,
+    "total_skipped": 41,
+    "plan_overrides_narrative": true
+  },
+  "overall_score": 78.8,
+  "objective_score": 96.8,
+  "strict_score": 78.8,
+  "scorecard_dimensions": [
+    {
+      "name": "File health",
+      "score": 94.6,
+      "strict": 94.6,
+      "checks": 13,
+      "failing": 1,
+      "tier": 3,
+      "subjective": false
+    },
+    {
+      "name": "AI generated debt",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "ai_generated_debt"
+      ]
+    },
+    {
+      "name": "API coherence",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "api_surface_coherence"
+      ]
+    },
+    {
+      "name": "Abstraction fit",
+      "score": 80.0,
+      "strict": 80.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "abstraction_fitness"
+      ]
+    },
+    {
+      "name": "Code quality",
+      "score": 91.6,
+      "strict": 91.6,
+      "checks": 95,
+      "failing": 15,
+      "tier": 3,
+      "subjective": false
+    },
+    {
+      "name": "Contracts",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "contract_coherence"
+      ]
+    },
+    {
+      "name": "Convention drift",
+      "score": 82.0,
+      "strict": 82.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "convention_outlier"
+      ]
+    },
+    {
+      "name": "Cross-module arch",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "cross_module_architecture"
+      ]
+    },
+    {
+      "name": "Dep health",
+      "score": 80.0,
+      "strict": 80.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "dependency_health"
+      ]
+    },
+    {
+      "name": "Design coherence",
+      "score": 78.0,
+      "strict": 78.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "design_coherence"
+      ]
+    },
+    {
+      "name": "Duplication",
+      "score": 100.0,
+      "strict": 100.0,
+      "checks": 46,
+      "failing": 0,
+      "tier": 3,
+      "subjective": false
+    },
+    {
+      "name": "Elegance",
+      "score": 68.7,
+      "strict": 68.7,
+      "checks": 30,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "high_level_elegance",
+        "low_level_elegance",
+        "mid_level_elegance"
+      ]
+    },
+    {
+      "name": "Error consistency",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "error_consistency"
+      ]
+    },
+    {
+      "name": "Init coupling",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "initialization_coupling"
+      ]
+    },
+    {
+      "name": "Logic clarity",
+      "score": 72.0,
+      "strict": 72.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "logic_clarity"
+      ]
+    },
+    {
+      "name": "Security",
+      "score": 97.3,
+      "strict": 97.3,
+      "checks": 37,
+      "failing": 1,
+      "tier": 4,
+      "subjective": false
+    },
+    {
+      "name": "Structure nav",
+      "score": 86.0,
+      "strict": 86.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "package_organization"
+      ]
+    },
+    {
+      "name": "Test health",
+      "score": 100.0,
+      "strict": 100.0,
+      "checks": 118,
+      "failing": 0,
+      "tier": 4,
+      "subjective": false
+    },
+    {
+      "name": "Test strategy",
+      "score": 58.0,
+      "strict": 58.0,
+      "checks": 10,
+      "failing": 1,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "test_strategy"
+      ]
+    },
+    {
+      "name": "Type safety",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "type_safety"
+      ]
+    }
+  ],
+  "subjective_measures": [
+    {
+      "name": "AI generated debt",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "ai_generated_debt"
+      ]
+    },
+    {
+      "name": "API coherence",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "api_surface_coherence"
+      ]
+    },
+    {
+      "name": "Abstraction fit",
+      "score": 80.0,
+      "strict": 80.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "abstraction_fitness"
+      ]
+    },
+    {
+      "name": "Contracts",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "contract_coherence"
+      ]
+    },
+    {
+      "name": "Convention drift",
+      "score": 82.0,
+      "strict": 82.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "convention_outlier"
+      ]
+    },
+    {
+      "name": "Cross-module arch",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "cross_module_architecture"
+      ]
+    },
+    {
+      "name": "Dep health",
+      "score": 80.0,
+      "strict": 80.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "dependency_health"
+      ]
+    },
+    {
+      "name": "Design coherence",
+      "score": 78.0,
+      "strict": 78.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "design_coherence"
+      ]
+    },
+    {
+      "name": "Elegance",
+      "score": 68.7,
+      "strict": 68.7,
+      "checks": 30,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "high_level_elegance",
+        "low_level_elegance",
+        "mid_level_elegance"
+      ]
+    },
+    {
+      "name": "Error consistency",
+      "score": 74.0,
+      "strict": 74.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "error_consistency"
+      ]
+    },
+    {
+      "name": "Init coupling",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "initialization_coupling"
+      ]
+    },
+    {
+      "name": "Logic clarity",
+      "score": 72.0,
+      "strict": 72.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "logic_clarity"
+      ]
+    },
+    {
+      "name": "Structure nav",
+      "score": 86.0,
+      "strict": 86.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "package_organization"
+      ]
+    },
+    {
+      "name": "Test strategy",
+      "score": 58.0,
+      "strict": 58.0,
+      "checks": 10,
+      "failing": 1,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "test_strategy"
+      ]
+    },
+    {
+      "name": "Type safety",
+      "score": 71.0,
+      "strict": 71.0,
+      "checks": 10,
+      "failing": 0,
+      "tier": 4,
+      "subjective": true,
+      "placeholder": false,
+      "cli_keys": [
+        "type_safety"
+      ]
+    }
+  ],
+  "config": {
+    "target_strict_score": 85,
+    "review_max_age_days": 30,
+    "review_batch_max_files": 80,
+    "holistic_max_age_days": 30,
+    "generate_scorecard": true,
+    "badge_path": "scorecard.png",
+    "exclude": [],
+    "ignore": [],
+    "ignore_metadata": {},
+    "zone_overrides": {},
+    "review_dimensions": [],
+    "large_files_threshold": 0,
+    "props_threshold": 0,
+    "issue_noise_budget": 10,
+    "issue_noise_global_budget": 0,
+    "execution_log_max_entries": 10000,
+    "needs_rescan": false,
+    "languages": {},
+    "commit_tracking_enabled": true,
+    "commit_pr": 1,
+    "commit_default_branch": "",
+    "commit_message_template": "desloppify: {status} {count} issue(s) \u2014 {summary}",
+    "trust_plugins": false,
+    "transition_messages": {
+      "execute": "PR split rule (decided 2026-11-10): keep in PR #1 (claude/home-assistant-integration-e7acd4) anything that does not change behaviour and stays inside files the four bug-fix commits already touch -- lint/docstring/typing cleanups, naming and comment fixes, dead-code removal, test hygiene, small contract/error-handling tightening (T1/T2). Defer to a follow-up PR any structural refactor: module splits or moves, new abstractions, API-surface or package reorganisation, dependency restructuring, anything that rewrites a file PR #1 does not touch (T3/T4). Record deferred items with 'desloppify plan skip' plus a note naming the follow-up PR."
+    },
+    "hermes_enabled": false,
+    "hermes_models": {
+      "execute": "openrouter:x-ai/grok-4.20-beta",
+      "review": "openrouter:google/gemini-3.1-pro-preview"
+    }
+  }
+}

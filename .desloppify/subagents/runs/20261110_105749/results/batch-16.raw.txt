@@ -1,0 +1,96 @@
+{
+ "batch": "initialization_coupling",
+ "batch_index": 16,
+ "assessments": {
+  "initialization_coupling": 71.0
+ },
+ "dimension_notes": {
+  "initialization_coupling": {
+   "evidence": [
+    "locale_loader.py holds module globals _current_language and _config_overrides mutated via set_language()/set_config_overrides(); Controller.__init__ sets them (controller.py:115-125) before any consumer calls get_key_config.",
+    "utils.py keeps four lazy caches (_ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML, _KEY_CONFIG) populated on first use; set_language/set_config_overrides do not invalidate them, so changing language after first load is silently ignored.",
+    "No import-time I/O, env reads or network calls: YAML loading is lazy; only constants and a lambda registry exist at module scope.",
+    "Test fixtures (reset_locale_state in four test files) reset language/overrides but never clear the utils caches, so tests that go through get_key_config depend on execution order; tests work around it by calling load_* directly.",
+    "__init__.py has an 'isort: off' import order to avoid circular imports; models/extension_config.py does `from .. import UnitSystem` (package-level import of a name re-exported by __init__), which only works because utils is imported first in __init__."
+   ],
+   "impact_scope": "module",
+   "fix_scope": "multi_file_refactor",
+   "confidence": "medium",
+   "issues_preventing_higher_score": ""
+  }
+ },
+ "dimension_judgment": {
+  "initialization_coupling": {
+   "dimension_character": "Import time is clean and side-effect free, with lazy YAML loading. The coupling is a hidden boot-order contract: set_language/set_config_overrides must run before the first lazy cache fill in utils, and nothing enforces or resets that.",
+   "score_rationale": "Pragmatic and small, with no import-time side effects, but language state in locale_loader plus four unresettable caches in utils create an implicit ordering requirement and test-order sensitivity, and the package import order is fragile. Fits the upper-middle band."
+  }
+ },
+ "issues": [
+  {
+   "dimension": "initialization_coupling",
+   "identifier": "locale_state_cache_not_invalidated",
+   "summary": "Locale globals and downstream lazy caches in utils are decoupled: setting language/overrides after first load is silently ignored, with no reset hook",
+   "related_files": [
+    "src/weewx_ha/locale_loader.py",
+    "src/weewx_ha/utils.py",
+    "src/weewx_ha/controller.py"
+   ],
+   "evidence": [
+    "set_language/set_config_overrides only assign module globals (locale_loader.py)",
+    "utils._ensure_loaded and get_key_config_dict cache results in _ENUM_MAPS/_UNIT_METADATA/_SENSORS_YAML/_KEY_CONFIG with no invalidation",
+    "Four test files each define an identical reset_locale_state fixture that cannot clear the utils caches"
+   ],
+   "suggestion": "Add a single reset/configure function (e.g. utils.configure(language, overrides) that sets locale state and clears all caches), call it from Controller, and have tests use it; or hold the state in an injected object instead of module globals.",
+   "confidence": "medium",
+   "impact_scope": "module",
+   "fix_scope": "multi_file_refactor",
+   "concern_verdict": "confirmed"
+  },
+  {
+   "dimension": "initialization_coupling",
+   "identifier": "circular_import_order_dependency",
+   "summary": "Package init relies on a hand-ordered import list and models import from the package root",
+   "related_files": [
+    "src/weewx_ha/__init__.py",
+    "src/weewx_ha/models/extension_config.py",
+    "src/weewx_ha/state_publisher.py"
+   ],
+   "evidence": [
+    "__init__.py: 'isort: off ... to prevent circular imports'",
+    "models/extension_config.py: `from .. import UnitSystem`",
+    "state_publisher.py: `from . import ConfigPublisher, UnitSystem`"
+   ],
+   "suggestion": "Import from the defining submodules (.utils, .config_publisher) instead of the package root so import order stops mattering and isort can be re-enabled.",
+   "confidence": "medium",
+   "impact_scope": "module",
+   "fix_scope": "single_edit"
+  }
+ ],
+ "retrospective": {
+  "root_causes": [
+   "Module-level state used as implicit configuration channel between Controller and utils"
+  ],
+  "likely_symptoms": [],
+  "possible_false_positives": [
+   "global_mutable_config finding on locale_loader is a legitimate but small instance"
+  ]
+ },
+ "context_updates": {
+  "initialization_coupling": {
+   "add": [
+    {
+     "header": "No import-time side effects",
+     "description": "YAML and config loading is lazy, so importing the package does no I/O.",
+     "settled": true,
+     "positive": true
+    },
+    {
+     "header": "Locale state in module globals",
+     "description": "Language and overrides live in locale_loader globals feeding lazy caches in utils, creating an ordering contract.",
+     "settled": false,
+     "positive": false
+    }
+   ]
+  }
+ }
+}

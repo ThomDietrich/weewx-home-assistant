@@ -147,8 +147,12 @@ Add a configuration section to the root of the `weewx.conf` file:
         manufacturer = <required>
         model = <required>
         name = <required>
-        timezone = <default: UTC>
+        timezone = <accepted, ignored>
 ```
+
+`timezone` is accepted but ignored: WeeWX timestamps are Unix epochs and are
+converted straight to UTC, so no station time zone is needed. The key is still
+accepted so that existing configurations keep validating.
 
 > [!NOTE]
 > Information about `TLS` options can be found in the Python documentation:

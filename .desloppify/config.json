@@ -1,0 +1,33 @@
+{
+  "target_strict_score": 85,
+  "review_max_age_days": 30,
+  "review_batch_max_files": 80,
+  "holistic_max_age_days": 30,
+  "generate_scorecard": true,
+  "badge_path": "scorecard.png",
+  "exclude": [],
+  "ignore": [],
+  "ignore_metadata": {},
+  "zone_overrides": {},
+  "review_dimensions": [],
+  "large_files_threshold": 0,
+  "props_threshold": 0,
+  "issue_noise_budget": 10,
+  "issue_noise_global_budget": 0,
+  "execution_log_max_entries": 10000,
+  "needs_rescan": false,
+  "languages": {},
+  "commit_tracking_enabled": true,
+  "commit_pr": 1,
+  "commit_default_branch": "",
+  "commit_message_template": "desloppify: {status} {count} issue(s) \u2014 {summary}",
+  "trust_plugins": false,
+  "transition_messages": {
+    "execute": "PR split rule (decided 2026-11-10): keep in PR #1 (claude/home-assistant-integration-e7acd4) anything that does not change behaviour and stays inside files the four bug-fix commits already touch -- lint/docstring/typing cleanups, naming and comment fixes, dead-code removal, test hygiene, small contract/error-handling tightening (T1/T2). Defer to a follow-up PR any structural refactor: module splits or moves, new abstractions, API-surface or package reorganisation, dependency restructuring, anything that rewrites a file PR #1 does not touch (T3/T4). Record deferred items with 'desloppify plan skip' plus a note naming the follow-up PR."
+  },
+  "hermes_enabled": false,
+  "hermes_models": {
+    "execute": "openrouter:x-ai/grok-4.20-beta",
+    "review": "openrouter:google/gemini-3.1-pro-preview"
+  }
+}

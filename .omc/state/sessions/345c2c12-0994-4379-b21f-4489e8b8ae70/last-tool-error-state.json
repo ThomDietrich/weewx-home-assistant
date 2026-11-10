@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /Users/th/Repos-Private/homeassistant/weewx-home-assistant/.claude/worktrees/home-assistant-integration-e7acd4; S=/private/tmp/claude-501/-Users-th-Repos-Private-homeassistant-weewx-hom...",
+  "error": "Exit code 1\nsed: -e: No such file or directory",
+  "timestamp": "2026-11-10T12:11:27.413Z",
+  "retry_count": 1
+}
