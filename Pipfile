@@ -1,0 +1,31 @@
+# Development environment for weewx-home-assistant.
+#
+# Derived from the repository's requirements files, replacing the pyenv-based
+# ./setup-env script (which needs GNU getopt and pyenv-virtualenv):
+#
+#   requirements.txt      -> the editable install of this package
+#   requirements-test.txt -> the package's "test" extra (pytest, coverage,
+#                            pre-commit, weewx) plus types-PyYAML
+#   requirements-dev.txt  -> ipython, mypy, semver
+#
+# Usage:
+#   pipenv install --dev
+#   pipenv run pytest
+
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+weewx-home-assistant = {path = ".", editable = true, extras = ["test"]}
+
+[dev-packages]
+ipython = "*"
+mypy = "*"
+semver = "*"
+types-PyYAML = "*"
+wheel = "*"
+
+[requires]
+python_version = "3.12"
