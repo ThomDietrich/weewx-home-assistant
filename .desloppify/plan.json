@@ -1,13 +1,12 @@
 {
   "version": 8,
   "created": "2026-11-10T10:57:28+00:00",
-  "updated": "2026-11-10T12:32:36+00:00",
+  "updated": "2026-11-10T12:37:19+00:00",
   "queue_order": [
-    "review::.::holistic::incomplete_migration::vestigial_time_zone_shim",
-    "review::.::holistic::test_strategy::controller_event_paths_untested",
     "subjective::abstraction_fitness",
     "subjective::ai_generated_debt",
     "subjective::api_surface_coherence",
+    "subjective::authorization_consistency",
     "subjective::contract_coherence",
     "subjective::convention_outlier",
     "subjective::cross_module_architecture",
@@ -15,11 +14,13 @@
     "subjective::design_coherence",
     "subjective::error_consistency",
     "subjective::high_level_elegance",
+    "subjective::incomplete_migration",
     "subjective::initialization_coupling",
     "subjective::logic_clarity",
     "subjective::low_level_elegance",
     "subjective::mid_level_elegance",
     "subjective::naming_quality",
+    "subjective::package_organization",
     "subjective::test_strategy",
     "subjective::type_safety"
   ],
@@ -434,6 +435,116 @@
       "created_at": "2026-11-10T12:16:30+00:00",
       "review_after": null,
       "skipped_at_scan": 2
+    },
+    "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration": {
+      "issue_id": "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration",
+      "kind": "permanent",
+      "reason": null,
+      "note": "False positive. config comes from get_key_config(key), which builds it from the sensor catalogue in src/weewx_ha/locales/sensors.yaml -- that file declares integration: binary_sensor on seven keys. The detector only sees writes inside this module.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: 7 'integration:' declarations in sensors.yaml make this dict catalogue-sourced, not locally built.",
+      "created_at": "2026-11-10T12:36:34+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::unitless": {
+      "issue_id": "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::unitless",
+      "kind": "permanent",
+      "reason": null,
+      "note": "False positive, same cause as the integration key: sensors.yaml declares unitless: true on seventeen keys and get_key_config returns that dict.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: 17 'unitless:' declarations in sensors.yaml make this dict catalogue-sourced, not locally built.",
+      "created_at": "2026-11-10T12:36:35+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "smells::src/weewx_ha/preprocessor.py::dead_function": {
+      "issue_id": "smells::src/weewx_ha/preprocessor.py::dead_function",
+      "kind": "permanent",
+      "reason": null,
+      "note": "False positive. process_packet is the only method of the class and carries the whole battery fan-out, including the fix this PR makes; it is called from Controller.on_weewx_loop through the executor and is covered by 16 tests.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: process_packet is 20 lines of logic covered by 16 tests, not a pass/return body.",
+      "created_at": "2026-11-10T12:36:35+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "smells::src/weewx_ha/config_publisher.py::hardcoded_url": {
+      "issue_id": "smells::src/weewx_ha/config_publisher.py::hardcoded_url",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Deliberate. support_url is part of the Home Assistant device-registry payload and has to be this repository's own URL; there is nothing to configure it to.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: the literal is the extension's own support URL in the Home Assistant device payload, with nothing to configure it to.",
+      "created_at": "2026-11-10T12:36:36+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "smells::src/weewx_ha/controller.py::annotation_quality": {
+      "issue_id": "smells::src/weewx_ha/controller.py::annotation_quality",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Deferred to the follow-up PR (group: controller-module-split). Nine of controller.py's eighteen functions have unannotated event/future/userdata/msg parameters and no return types; annotating them turns on mypy body checking for those functions and would dominate the diff of a PR whose point is four reproduced defect fixes. Belongs with the controller.py split.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: the controller.py typing pass is real work, deferred to the follow-up PR so a four-defect bugfix PR stays reviewable.",
+      "created_at": "2026-11-10T12:36:52+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "smells::src/weewx_ha/locale_loader.py::high_cyclomatic_complexity": {
+      "issue_id": "smells::src/weewx_ha/locale_loader.py::high_cyclomatic_complexity",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Deferred to the follow-up PR (group: locale-loader-decomposition). The complexity is in load_yaml, which handles base load, localized merge and config overrides in one function; splitting it is a structural change, not a cleanup inside the files this PR touches.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: load_yaml's decomposition is a real refactor, deferred to the follow-up PR where the module split belongs.",
+      "created_at": "2026-11-10T12:36:52+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "smells::src/weewx_ha/controller.py::swallowed_error": {
+      "issue_id": "smells::src/weewx_ha/controller.py::swallowed_error",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Deliberate, not swallowed. All three are ThreadPoolExecutor done-callbacks (check_future_errors, check_config_update, preprocessor_complete) plus the shutdown path, and each logs with exc_info=True. An exception escaping a done-callback is discarded by the executor with nothing in the log; raising out of a WeeWX service callback takes the engine down. The one real consequence -- preprocessor_complete dropping the whole packet on an error -- is now documented in preprocessor.py and pinned by a test.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: every one of these handlers logs with exc_info and must not raise, since an escaping exception in an executor done-callback is lost and would take the WeeWX service down.",
+      "created_at": "2026-11-10T12:36:53+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "cycles::src/weewx_ha/__init__.py::src/weewx_ha/__init__.py::src/weewx_ha/config_publisher.py::src/weewx_ha/controller.py::src/weewx_ha/models/__init__.py::+3": {
+      "issue_id": "cycles::src/weewx_ha/__init__.py::src/weewx_ha/__init__.py::src/weewx_ha/config_publisher.py::src/weewx_ha/controller.py::src/weewx_ha/models/__init__.py::+3",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Deferred to the follow-up PR (group: package-import-cycle). This is the strategy item structural-work-belongs-in-follow-up-pr names by hand: breaking the cycle moves code across seven files, which cannot land in a four-defect bugfix PR and stay reviewable.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: breaking the package import cycle is the follow-up PR's headline item, not something to bury in a bugfix PR.",
+      "created_at": "2026-11-10T12:36:53+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "strategy::functional-defects-ahead-of-elegance": {
+      "issue_id": "strategy::functional-defects-ahead-of-elegance",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: this is a triage strategy note I wrote myself, not a defect, and the plan it shaped has been executed; plan resolve reports it resolved but it returns to the queue.",
+      "created_at": "2026-11-10T12:37:18+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "strategy::structural-work-belongs-in-follow-up-pr": {
+      "issue_id": "strategy::structural-work-belongs-in-follow-up-pr",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: this is a triage strategy note I wrote myself, not a defect, and the plan it shaped has been executed; plan resolve reports it resolved but it returns to the queue.",
+      "created_at": "2026-11-10T12:37:18+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
+    },
+    "strategy::unverified-high-confidence-findings": {
+      "issue_id": "strategy::unverified-high-confidence-findings",
+      "kind": "permanent",
+      "reason": null,
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "attestation": "I have reviewed this against the code and I am not gaming the score: this is a triage strategy note I wrote myself, not a defect, and the plan it shaped has been executed; plan resolve reports it resolved but it returns to the queue.",
+      "created_at": "2026-11-10T12:37:19+00:00",
+      "review_after": null,
+      "skipped_at_scan": 2
     }
   },
   "active_cluster": null,
@@ -633,8 +744,8 @@
     "review::.::holistic::test_strategy::controller_event_paths_untested": {
       "issue_id": "review::.::holistic::test_strategy::controller_event_paths_untested",
       "created_at": "2026-11-10T11:44:32+00:00",
-      "cluster": "from-config-dict-coverage",
-      "updated_at": "2026-11-10T12:19:03+00:00"
+      "cluster": null,
+      "updated_at": "2026-11-10T12:35:04+00:00"
     },
     "review::.::holistic::test_strategy::no_cross_module_integration_test": {
       "issue_id": "review::.::holistic::test_strategy::no_cross_module_integration_test",
@@ -663,8 +774,8 @@
     "review::.::holistic::incomplete_migration::vestigial_time_zone_shim": {
       "issue_id": "review::.::holistic::incomplete_migration::vestigial_time_zone_shim",
       "created_at": "2026-11-10T11:44:32+00:00",
-      "cluster": "readme-timezone-correction",
-      "updated_at": "2026-11-10T12:19:05+00:00"
+      "cluster": null,
+      "updated_at": "2026-11-10T12:35:04+00:00"
     },
     "review::.::holistic::convention_outlier::mixed_typing_idioms": {
       "issue_id": "review::.::holistic::convention_outlier::mixed_typing_idioms",
@@ -929,7 +1040,7 @@
       "action": null,
       "action_type": "manual_fix",
       "execution_policy": "planned_only",
-      "execution_status": "active",
+      "execution_status": "done",
       "user_modified": true,
       "action_steps": [
         {
@@ -938,7 +1049,8 @@
           "effort": "small",
           "issue_refs": [
             "review::.::holistic::test_strategy::controller_event_paths_untested"
-          ]
+          ],
+          "done": true
         }
       ],
       "depends_on_clusters": [
@@ -958,7 +1070,7 @@
       "action": null,
       "action_type": "manual_fix",
       "execution_policy": "planned_only",
-      "execution_status": "active",
+      "execution_status": "done",
       "user_modified": true,
       "action_steps": [
         {
@@ -967,7 +1079,8 @@
           "effort": "trivial",
           "issue_refs": [
             "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
-          ]
+          ],
+          "done": true
         }
       ]
     }
@@ -975,16 +1088,15 @@
   "superseded": {},
   "promoted_ids": [],
   "plan_start_scores": {
-    "strict": 24.2,
-    "overall": 24.2,
+    "strict": 78.8,
+    "overall": 78.8,
     "objective": 96.8,
     "verified": 96.8
   },
   "refresh_state": {
     "_subjective_migration_pruned": true,
     "lifecycle_phase": "plan",
-    "subjective_review_completed_at_scan_count": 2,
-    "postflight_scan_completed_at_scan_count": 2
+    "subjective_review_completed_at_scan_count": 2
   },
   "execution_log": [
     {
@@ -3890,6 +4002,327 @@
       "actor": "user",
       "note": "Applied: every finding was reproduced before being acted on. Three high-confidence claims were rejected on that evidence -- get_key_config returning None (it has a three-step fallback and always returns a dict), the three utils.py RuntimeError guards being dead (removing them takes mypy from 1 error to 4), and renaming the _LAMBDA_REGISTRY timestamp entries (a user-visible breaking change, since convert_lambda names are referenced from the sensors override).",
       "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:35:03+00:00",
+      "action": "done",
+      "issue_ids": [
+        "from-config-dict-coverage"
+      ],
+      "cluster_name": "from-config-dict-coverage",
+      "actor": "user",
+      "note": "tests/test_extension_config.py covers the valid stanza with its defaults, an unknown key against extra='forbid', and a missing [HomeAssistant] section, which must raise rather than silently default; the file goes from 77% to 100%. Per the sense-check correction the single-log assertion stays at Controller level (tests/test_controller_lifecycle.py); this test asserts the model reports nothing, verified by probe (adding a logger.error back fails two cases). The no-op except-and-reraise and the now-unused logger were removed with it.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "resolve",
+      "issue_ids": [
+        "review::.::holistic::test_strategy::controller_event_paths_untested"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "tests/test_extension_config.py covers the valid stanza with its defaults, an unknown key against extra='forbid', and a missing [HomeAssistant] section, which must raise rather than silently default; the file goes from 77% to 100%. Per the sense-check correction the single-log assertion stays at Controller level (tests/test_controller_lifecycle.py); this test asserts the model reports nothing, verified by probe (adding a logger.error back fails two cases). The no-op except-and-reraise and the now-unused logger were removed with it.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually tests/test_extension_config.py covers the valid stanza with its defaults, an unknown key against extra='forbid', and a missing [HomeAssistant] section, which must raise rather than silently default; the file goes from 77% to 100%. Per the sense-check correction the single-log assertion stays at Controller level (tests/test_controller_lifecycle.py); this test asserts the model reports nothing, verified by probe (adding a logger.error back fails two cases). The no-op except-and-reraise and the now-unused logger were removed with it. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "cluster_done",
+      "issue_ids": [
+        "review::.::holistic::test_strategy::controller_event_paths_untested"
+      ],
+      "cluster_name": "from-config-dict-coverage",
+      "actor": "user",
+      "note": null,
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "done",
+      "issue_ids": [
+        "readme-timezone-correction"
+      ],
+      "cluster_name": "readme-timezone-correction",
+      "actor": "user",
+      "note": "README.md:150 now reads 'timezone = <accepted, ignored>' with a paragraph giving the reason, worded from the field description. StationInfo.time_zone kept, as the step requires: alias='timezone' and populate_by_name keep existing configurations validating. A blockquote would have tripped MD028 next to the TLS note, so the explanation is a plain paragraph.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "resolve",
+      "issue_ids": [
+        "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "README.md:150 now reads 'timezone = <accepted, ignored>' with a paragraph giving the reason, worded from the field description. StationInfo.time_zone kept, as the step requires: alias='timezone' and populate_by_name keep existing configurations validating. A blockquote would have tripped MD028 next to the TLS note, so the explanation is a plain paragraph.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually README.md:150 now reads 'timezone = <accepted, ignored>' with a paragraph giving the reason, worded from the field description. StationInfo.time_zone kept, as the step requires: alias='timezone' and populate_by_name keep existing configurations validating. A blockquote would have tripped MD028 next to the TLS note, so the explanation is a plain paragraph. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "cluster_done",
+      "issue_ids": [
+        "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
+      ],
+      "cluster_name": "readme-timezone-correction",
+      "actor": "user",
+      "note": null,
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "sync_subjective",
+      "issue_ids": [],
+      "cluster_name": null,
+      "actor": "system",
+      "note": null,
+      "detail": {
+        "changes": true
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:35:04+00:00",
+      "action": "sync_communicate_score",
+      "issue_ids": [],
+      "cluster_name": null,
+      "actor": "system",
+      "note": null,
+      "detail": {
+        "auto_resolved": true
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:35:08+00:00",
+      "action": "commit_record",
+      "issue_ids": [
+        "review::.::holistic::test_strategy::controller_event_paths_untested",
+        "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "from_config_dict coverage and the README timezone correction",
+      "detail": {
+        "sha": "0aefe34b4d2a",
+        "branch": "claude/home-assistant-integration-e7acd4"
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:34+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "False positive. config comes from get_key_config(key), which builds it from the sensor catalogue in src/weewx_ha/locales/sensors.yaml -- that file declares integration: binary_sensor on seven keys. The detector only sees writes inside this module.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:35+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::unitless"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "False positive, same cause as the integration key: sensors.yaml declares unitless: true on seventeen keys and get_key_config returns that dict.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:35+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "smells::src/weewx_ha/preprocessor.py::dead_function"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "False positive. process_packet is the only method of the class and carries the whole battery fan-out, including the fix this PR makes; it is called from Controller.on_weewx_loop through the executor and is covered by 16 tests.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:36+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "smells::src/weewx_ha/config_publisher.py::hardcoded_url"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Deliberate. support_url is part of the Home Assistant device-registry payload and has to be this repository's own URL; there is nothing to configure it to.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:52+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "smells::src/weewx_ha/controller.py::annotation_quality"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Deferred to the follow-up PR (group: controller-module-split). Nine of controller.py's eighteen functions have unannotated event/future/userdata/msg parameters and no return types; annotating them turns on mypy body checking for those functions and would dominate the diff of a PR whose point is four reproduced defect fixes. Belongs with the controller.py split.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:52+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "smells::src/weewx_ha/locale_loader.py::high_cyclomatic_complexity"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Deferred to the follow-up PR (group: locale-loader-decomposition). The complexity is in load_yaml, which handles base load, localized merge and config overrides in one function; splitting it is a structural change, not a cleanup inside the files this PR touches.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:53+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "smells::src/weewx_ha/controller.py::swallowed_error"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Deliberate, not swallowed. All three are ThreadPoolExecutor done-callbacks (check_future_errors, check_config_update, preprocessor_complete) plus the shutdown path, and each logs with exc_info=True. An exception escaping a done-callback is discarded by the executor with nothing in the log; raising out of a WeeWX service callback takes the engine down. The one real consequence -- preprocessor_complete dropping the whole packet on an error -- is now documented in preprocessor.py and pinned by a test.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:36:53+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "cycles::src/weewx_ha/__init__.py::src/weewx_ha/__init__.py::src/weewx_ha/config_publisher.py::src/weewx_ha/controller.py::src/weewx_ha/models/__init__.py::+3"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Deferred to the follow-up PR (group: package-import-cycle). This is the strategy item structural-work-belongs-in-follow-up-pr names by hand: breaking the cycle moves code across seven files, which cannot land in a four-defect bugfix PR and stay reviewable.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:37:00+00:00",
+      "action": "done",
+      "issue_ids": [
+        "smells::src/weewx_ha/preprocessor.py::annotation_quality"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "process_packet is now annotated dict[str, Any] -> dict[str, Any] instead of bare dict, with the typing import added. pre-commit clean, mypy at its one pre-existing baseline error, 88 tests passing.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:37:00+00:00",
+      "action": "resolve",
+      "issue_ids": [
+        "smells::src/weewx_ha/preprocessor.py::annotation_quality"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "process_packet is now annotated dict[str, Any] -> dict[str, Any] instead of bare dict, with the typing import added. pre-commit clean, mypy at its one pre-existing baseline error, 88 tests passing.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually process_packet is now annotated dict[str, Any] -> dict[str, Any] instead of bare dict, with the typing import added. pre-commit clean, mypy at its one pre-existing baseline error, 88 tests passing. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:37:08+00:00",
+      "action": "done",
+      "issue_ids": [
+        "strategy::functional-defects-ahead-of-elegance"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Applied: the four reproduced defects were fixed first, each behind a test written to fail against the old code.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:37:08+00:00",
+      "action": "done",
+      "issue_ids": [
+        "strategy::structural-work-belongs-in-follow-up-pr"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Applied: the package import cycle, the controller.py typing pass and the locale_loader decomposition are all skipped permanently with a follow-up-PR group named in the note.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:37:09+00:00",
+      "action": "done",
+      "issue_ids": [
+        "strategy::unverified-high-confidence-findings"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Applied: every finding was reproduced before being acted on, and six were rejected on that evidence.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-11-10T12:37:18+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "strategy::functional-defects-ahead-of-elegance"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:37:18+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "strategy::structural-work-belongs-in-follow-up-pr"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
+    },
+    {
+      "timestamp": "2026-11-10T12:37:19+00:00",
+      "action": "skip",
+      "issue_ids": [
+        "strategy::unverified-high-confidence-findings"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
+      "detail": {
+        "kind": "permanent",
+        "reason": null
+      }
     }
   ],
   "epic_triage_meta": {
@@ -5177,9 +5610,28 @@
       "recorded_at": "2026-11-10T12:32:19+00:00",
       "note": "dead guards and the stale local import",
       "cluster_name": null
+    },
+    {
+      "sha": "0aefe34b4d2a",
+      "branch": "claude/home-assistant-integration-e7acd4",
+      "issue_ids": [
+        "review::.::holistic::test_strategy::controller_event_paths_untested",
+        "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
+      ],
+      "recorded_at": "2026-11-10T12:35:08+00:00",
+      "note": "from_config_dict coverage and the README timezone correction",
+      "cluster_name": null
     }
   ],
-  "uncommitted_issues": [],
+  "uncommitted_issues": [
+    "smells::src/weewx_ha/preprocessor.py::annotation_quality"
+  ],
   "commit_tracking_branch": null,
-  "scan_count_at_plan_start": 1
+  "scan_count_at_plan_start": 1,
+  "previous_plan_start_scores": {
+    "strict": 24.2,
+    "overall": 24.2,
+    "objective": 96.8,
+    "verified": 96.8
+  }
 }

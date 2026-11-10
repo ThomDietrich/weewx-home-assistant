@@ -3,55 +3,55 @@
   "created": "2026-11-10T10:57:25+00:00",
   "last_scan": "2026-11-10T11:08:54+00:00",
   "scan_count": 2,
-  "overall_score": 78.8,
-  "objective_score": 96.8,
-  "strict_score": 78.8,
+  "overall_score": 79.3,
+  "objective_score": 98.4,
+  "strict_score": 78.9,
   "verified_strict_score": 96.8,
   "stats": {
     "total": 106,
     "auto_resolved": 0,
     "deferred": 0,
     "false_positive": 0,
-    "fixed": 37,
-    "open": 28,
+    "fixed": 46,
+    "open": 9,
     "triaged_out": 0,
-    "wontfix": 41,
+    "wontfix": 51,
     "by_tier": {
       "1": {
         "auto_resolved": 0,
         "deferred": 0,
         "false_positive": 0,
-        "fixed": 5,
-        "open": 3,
+        "fixed": 7,
+        "open": 0,
         "triaged_out": 0,
-        "wontfix": 9
+        "wontfix": 10
       },
       "2": {
         "auto_resolved": 0,
         "deferred": 0,
         "false_positive": 0,
-        "fixed": 9,
-        "open": 11,
+        "fixed": 13,
+        "open": 3,
         "triaged_out": 0,
-        "wontfix": 25
+        "wontfix": 29
       },
       "3": {
         "auto_resolved": 0,
         "deferred": 0,
         "false_positive": 0,
-        "fixed": 3,
-        "open": 13,
+        "fixed": 6,
+        "open": 6,
         "triaged_out": 0,
-        "wontfix": 7
+        "wontfix": 11
       },
       "4": {
         "auto_resolved": 0,
         "deferred": 0,
         "false_positive": 0,
         "fixed": 20,
-        "open": 1,
+        "open": 0,
         "triaged_out": 0,
-        "wontfix": 0
+        "wontfix": 1
       }
     }
   },
@@ -101,11 +101,11 @@
         ],
         "length": 7
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "Deferred to the follow-up PR (group: package-import-cycle). This is the strategy item structural-work-belongs-in-follow-up-pr names by hand: breaking the cycle moves code across seven files, which cannot land in a four-defect bugfix PR and stay reviewable.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:53+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -114,7 +114,32 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: breaking the package import cycle is the follow-up PR's headline item, not something to bury in a bugfix PR.",
+        "attested_at": "2026-11-10T12:36:53+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:53+00:00",
+        "scan_count": 2,
+        "tier": 4,
+        "confidence": "high",
+        "detail": {
+          "files": [
+            "src/weewx_ha/__init__.py",
+            "src/weewx_ha/config_publisher.py",
+            "src/weewx_ha/controller.py",
+            "src/weewx_ha/models/__init__.py",
+            "src/weewx_ha/models/extension_config.py",
+            "src/weewx_ha/models/mqtt_config.py",
+            "src/weewx_ha/state_publisher.py"
+          ],
+          "length": 7
+        }
+      }
     },
     "facade::src/weewx_ha/__init__.py": {
       "id": "facade::src/weewx_ha/__init__.py",
@@ -202,11 +227,11 @@
           486
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "Deliberate, not swallowed. All three are ThreadPoolExecutor done-callbacks (check_future_errors, check_config_update, preprocessor_complete) plus the shutdown path, and each logs with exc_info=True. An exception escaping a done-callback is discarded by the executor with nothing in the log; raising out of a WeeWX service callback takes the engine down. The one real consequence -- preprocessor_complete dropping the whole packet on an error -- is now documented in preprocessor.py and pinned by a test.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:53+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -215,7 +240,30 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: every one of these handlers logs with exc_info and must not raise, since an escaping exception in an executor done-callback is lost and would take the WeeWX service down.",
+        "attested_at": "2026-11-10T12:36:53+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:53+00:00",
+        "scan_count": 2,
+        "tier": 2,
+        "confidence": "medium",
+        "detail": {
+          "smell_id": "swallowed_error",
+          "severity": "high",
+          "count": 3,
+          "lines": [
+            265,
+            413,
+            486
+          ]
+        }
+      }
     },
     "smells::src/weewx_ha/controller.py::annotation_quality": {
       "id": "smells::src/weewx_ha/controller.py::annotation_quality",
@@ -240,11 +288,11 @@
           472
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "Deferred to the follow-up PR (group: controller-module-split). Nine of controller.py's eighteen functions have unannotated event/future/userdata/msg parameters and no return types; annotating them turns on mypy body checking for those functions and would dominate the diff of a PR whose point is four reproduced defect fixes. Belongs with the controller.py split.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:52+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -253,7 +301,36 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: the controller.py typing pass is real work, deferred to the follow-up PR so a four-defect bugfix PR stays reviewable.",
+        "attested_at": "2026-11-10T12:36:52+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:52+00:00",
+        "scan_count": 2,
+        "tier": 3,
+        "confidence": "medium",
+        "detail": {
+          "smell_id": "annotation_quality",
+          "severity": "medium",
+          "count": 9,
+          "lines": [
+            158,
+            201,
+            226,
+            237,
+            268,
+            281,
+            297,
+            309,
+            472
+          ]
+        }
+      }
     },
     "smells::src/weewx_ha/preprocessor.py::annotation_quality": {
       "id": "smells::src/weewx_ha/preprocessor.py::annotation_quality",
@@ -270,11 +347,11 @@
           27
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "process_packet is now annotated dict[str, Any] -> dict[str, Any] instead of bare dict, with the typing import added. pre-commit clean, mypy at its one pre-existing baseline error, 88 tests passing.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:37:00+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -283,7 +360,13 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually process_packet is now annotated dict[str, Any] -> dict[str, Any] instead of bare dict, with the typing import added. pre-commit clean, mypy at its one pre-existing baseline error, 88 tests passing. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:37:00+00:00",
+        "scan_verified": false
+      }
     },
     "smells::src/weewx_ha/config_publisher.py::hardcoded_url": {
       "id": "smells::src/weewx_ha/config_publisher.py::hardcoded_url",
@@ -300,11 +383,11 @@
           94
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "Deliberate. support_url is part of the Home Assistant device-registry payload and has to be this repository's own URL; there is nothing to configure it to.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:36+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -313,7 +396,28 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: the literal is the extension's own support URL in the Home Assistant device payload, with nothing to configure it to.",
+        "attested_at": "2026-11-10T12:36:36+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:36+00:00",
+        "scan_count": 2,
+        "tier": 3,
+        "confidence": "medium",
+        "detail": {
+          "smell_id": "hardcoded_url",
+          "severity": "medium",
+          "count": 1,
+          "lines": [
+            94
+          ]
+        }
+      }
     },
     "smells::src/weewx_ha/preprocessor.py::dead_function": {
       "id": "smells::src/weewx_ha/preprocessor.py::dead_function",
@@ -330,11 +434,11 @@
           23
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "False positive. process_packet is the only method of the class and carries the whole battery fan-out, including the fix this PR makes; it is called from Controller.on_weewx_loop through the executor and is covered by 16 tests.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:35+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -343,7 +447,28 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: process_packet is 20 lines of logic covered by 16 tests, not a pass/return body.",
+        "attested_at": "2026-11-10T12:36:35+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:35+00:00",
+        "scan_count": 2,
+        "tier": 3,
+        "confidence": "medium",
+        "detail": {
+          "smell_id": "dead_function",
+          "severity": "medium",
+          "count": 1,
+          "lines": [
+            23
+          ]
+        }
+      }
     },
     "smells::src/weewx_ha/locale_loader.py::high_cyclomatic_complexity": {
       "id": "smells::src/weewx_ha/locale_loader.py::high_cyclomatic_complexity",
@@ -360,11 +485,11 @@
           124
         ]
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "Deferred to the follow-up PR (group: locale-loader-decomposition). The complexity is in load_yaml, which handles base load, localized merge and config overrides in one function; splitting it is a structural change, not a cleanup inside the files this PR touches.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:52+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -373,7 +498,28 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: load_yaml's decomposition is a real refactor, deferred to the follow-up PR where the module split belongs.",
+        "attested_at": "2026-11-10T12:36:52+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:52+00:00",
+        "scan_count": 2,
+        "tier": 3,
+        "confidence": "medium",
+        "detail": {
+          "smell_id": "high_cyclomatic_complexity",
+          "severity": "medium",
+          "count": 1,
+          "lines": [
+            124
+          ]
+        }
+      }
     },
     "smells::src/weewx_ha/controller.py::magic_number": {
       "id": "smells::src/weewx_ha/controller.py::magic_number",
@@ -536,11 +682,11 @@
         "line": 130,
         "info": "Created at line 125 in process_packet() \u2014 will raise KeyError or return None via .get()"
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "False positive. config comes from get_key_config(key), which builds it from the sensor catalogue in src/weewx_ha/locales/sensors.yaml -- that file declares integration: binary_sensor on seven keys. The detector only sees writes inside this module.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:34+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -549,7 +695,26 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: 7 'integration:' declarations in sensors.yaml make this dict catalogue-sourced, not locally built.",
+        "attested_at": "2026-11-10T12:36:34+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:34+00:00",
+        "scan_count": 2,
+        "tier": 2,
+        "confidence": "high",
+        "detail": {
+          "kind": "phantom_read",
+          "key": "integration",
+          "line": 130,
+          "info": "Created at line 125 in process_packet() \u2014 will raise KeyError or return None via .get()"
+        }
+      }
     },
     "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::unitless": {
       "id": "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::unitless",
@@ -564,11 +729,11 @@
         "line": 174,
         "info": "Created at line 173 in _discover_derived_sensors() \u2014 will raise KeyError or return None via .get()"
       },
-      "status": "open",
-      "note": null,
+      "status": "wontfix",
+      "note": "False positive, same cause as the integration key: sensors.yaml declares unitless: true on seventeen keys and get_key_config returns that dict.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:28+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:36:35+00:00",
       "reopen_count": 0,
       "work_item_kind": "mechanical_defect",
       "issue_kind": "mechanical_defect",
@@ -577,7 +742,26 @@
       "zone": "production",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: 17 'unitless:' declarations in sensors.yaml make this dict catalogue-sourced, not locally built.",
+        "attested_at": "2026-11-10T12:36:35+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:36:35+00:00",
+        "scan_count": 2,
+        "tier": 2,
+        "confidence": "high",
+        "detail": {
+          "kind": "phantom_read",
+          "key": "unitless",
+          "line": 174,
+          "info": "Created at line 173 in _discover_derived_sensors() \u2014 will raise KeyError or return None via .get()"
+        }
+      }
     },
     "subjective_review::.::abstraction_fitness": {
       "id": "subjective_review::.::abstraction_fitness",
@@ -2678,11 +2862,11 @@
         "reasoning": "",
         "summary_hash": "9e1bb2fa"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -2690,7 +2874,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::low_level_elegance::redundant_none_guards_and_lazy_caches": {
       "id": "review::.::holistic::low_level_elegance::redundant_none_guards_and_lazy_caches",
@@ -2716,11 +2906,11 @@
         "reasoning": "",
         "summary_hash": "da830555"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -2728,7 +2918,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::low_level_elegance::preprocessor_noop_init_and_unused_lambda_arg": {
       "id": "review::.::holistic::low_level_elegance::preprocessor_noop_init_and_unused_lambda_arg",
@@ -3057,11 +3253,11 @@
         "reasoning": "",
         "summary_hash": "754dd47a"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "tests/test_extension_config.py covers the valid stanza with its defaults, an unknown key against extra='forbid', and a missing [HomeAssistant] section, which must raise rather than silently default; the file goes from 77% to 100%. Per the sense-check correction the single-log assertion stays at Controller level (tests/test_controller_lifecycle.py); this test asserts the model reports nothing, verified by probe (adding a logger.error back fails two cases). The no-op except-and-reraise and the now-unused logger were removed with it.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:35:03+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -3069,7 +3265,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually tests/test_extension_config.py covers the valid stanza with its defaults, an unknown key against extra='forbid', and a missing [HomeAssistant] section, which must raise rather than silently default; the file goes from 77% to 100%. Per the sense-check correction the single-log assertion stays at Controller level (tests/test_controller_lifecycle.py); this test asserts the model reports nothing, verified by probe (adding a logger.error back fails two cases). The no-op except-and-reraise and the now-unused logger were removed with it. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:35:03+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::test_strategy::controller_tests_use_new_stubs": {
       "id": "review::.::holistic::test_strategy::controller_tests_use_new_stubs",
@@ -3514,11 +3716,11 @@
         "reasoning": "",
         "summary_hash": "ba9ac8fb"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -3526,7 +3728,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::ai_generated_debt::noop_preprocessor_init": {
       "id": "review::.::holistic::ai_generated_debt::noop_preprocessor_init",
@@ -3658,11 +3866,11 @@
         "reasoning": "",
         "summary_hash": "8473cc58"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -3670,7 +3878,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::incomplete_migration::vestigial_time_zone_shim": {
       "id": "review::.::holistic::incomplete_migration::vestigial_time_zone_shim",
@@ -3696,11 +3910,11 @@
         "reasoning": "",
         "summary_hash": "db656939"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "README.md:150 now reads 'timezone = <accepted, ignored>' with a paragraph giving the reason, worded from the field description. StationInfo.time_zone kept, as the step requires: alias='timezone' and populate_by_name keep existing configurations validating. A blockquote would have tripped MD028 next to the TLS note, so the explanation is a plain paragraph.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:35:04+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -3708,7 +3922,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually README.md:150 now reads 'timezone = <accepted, ignored>' with a paragraph giving the reason, worded from the field description. StationInfo.time_zone kept, as the step requires: alias='timezone' and populate_by_name keep existing configurations validating. A blockquote would have tripped MD028 next to the TLS note, so the explanation is a plain paragraph. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:35:04+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::package_organization::models_imports_package_root": {
       "id": "review::.::holistic::package_organization::models_imports_package_root",
@@ -4576,11 +4796,11 @@
         "reasoning": "",
         "summary_hash": "d5b8bef4"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -4588,7 +4808,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::type_safety::legacy_typing_half_migrated": {
       "id": "review::.::holistic::type_safety::legacy_typing_half_migrated",
@@ -4735,11 +4961,11 @@
         "reasoning": "",
         "summary_hash": "223205db"
       },
-      "status": "open",
-      "note": null,
+      "status": "fixed",
+      "note": "Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline.",
       "first_seen": "2026-11-10T11:08:54+00:00",
       "last_seen": "2026-11-10T11:08:54+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:32:18+00:00",
       "reopen_count": 0,
       "work_item_kind": "review_defect",
       "issue_kind": "review_defect",
@@ -4747,7 +4973,13 @@
       "lang": "python",
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have actually Deleted the two unit_system None guards (confirmed unreachable: non-Optional pydantic field with a default, both constructors non-Optional, both call sites pass self.config.unit_system, coverage reports the None arm as a never-taken partial branch), the username/password guard before username_pw_set (username min_length=1 and a validator rejecting an empty password), and the duplicated function-scope get_key_config_dict import, which joined the module-level import from the same module. The three RuntimeError guards in utils.py are deliberately kept: they narrow dict | None for mypy after _ensure_loaded, and removing them takes mypy from one pre-existing error to four. 83 passed, pre-commit clean, mypy at baseline. and I am not gaming the score.",
+        "attested_at": "2026-11-10T12:32:18+00:00",
+        "scan_verified": false
+      }
     },
     "review::.::holistic::type_safety::controller_attrs_may_be_missing": {
       "id": "review::.::holistic::type_safety::controller_attrs_may_be_missing",
@@ -4920,7 +5152,7 @@
       }
     },
     "strategy::functional-defects-ahead-of-elegance": {
-      "status": "open",
+      "status": "wontfix",
       "detector": "strategy",
       "tier": 1,
       "priority": "critical",
@@ -4944,17 +5176,35 @@
       "origin": "scan",
       "file": "",
       "confidence": "low",
-      "note": null,
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:37:18+00:00",
       "reopen_count": 0,
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: this is a triage strategy note I wrote myself, not a defect, and the plan it shaped has been executed; plan resolve reports it resolved but it returns to the queue.",
+        "attested_at": "2026-11-10T12:37:18+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:37:18+00:00",
+        "scan_count": 2,
+        "tier": 1,
+        "confidence": "low",
+        "detail": {
+          "dimension": "logic_clarity",
+          "recommendation": "Promote the battery bitmap mismatch, the shutDown AttributeError after a rejected config, the None txBatteryStatus TypeError and the inert locale setters to the front of the queue, each with a regression test verified to fail against the unfixed code, and land them in the open bugfix PR alongside the four defects already there.",
+          "source": "strategist"
+        }
+      }
     },
     "strategy::structural-work-belongs-in-follow-up-pr": {
-      "status": "open",
+      "status": "wontfix",
       "detector": "strategy",
       "tier": 2,
       "priority": "high",
@@ -4979,14 +5229,32 @@
       "origin": "scan",
       "file": "",
       "confidence": "low",
-      "note": null,
+      "note": "Triage strategy record, already applied -- it is not a code finding. plan resolve reports it resolved and then re-queues it, so skipping is the only way to clear it.",
       "first_seen": "2026-11-10T10:57:25+00:00",
       "last_seen": "2026-11-10T10:57:25+00:00",
-      "resolved_at": null,
+      "resolved_at": "2026-11-10T12:37:18+00:00",
       "reopen_count": 0,
       "suppressed": false,
       "suppressed_at": null,
-      "suppression_pattern": null
+      "suppression_pattern": null,
+      "resolution_attestation": {
+        "kind": "manual",
+        "text": "I have reviewed this against the code and I am not gaming the score: this is a triage strategy note I wrote myself, not a defect, and the plan it shaped has been executed; plan resolve reports it resolved but it returns to the queue.",
+        "attested_at": "2026-11-10T12:37:18+00:00",
+        "scan_verified": false
+      },
+      "wontfix_scan_count": 2,
+      "wontfix_snapshot": {
+        "captured_at": "2026-11-10T12:37:18+00:00",
+        "scan_count": 2,
+        "tier": 2,
+        "confidence": "low",
+        "detail": {
+          "dimension": "cross_module_architecture",
+          "recommendation": "Defer the import-topology and module-split clusters with desloppify plan skip plus a note naming the follow-up PR, and keep this cycle to behaviour-correcting fixes and local cleanups inside files the branch already touches.",
+          "source": "strategist"
+        }
+      }
     },
     "strategy::unverified-high-confidence-findings": {
       "status": "open",
@@ -5089,7 +5357,7 @@
       "assessed_at": "2026-11-10T11:08:54+00:00",
       "needs_review_refresh": true,
       "refresh_reason": "review_issue_fixed",
-      "stale_since": "2026-11-10T12:25:37+00:00"
+      "stale_since": "2026-11-10T12:32:18+00:00"
     },
     "api_surface_coherence": {
       "score": 71.0,
@@ -5102,7 +5370,10 @@
     "authorization_consistency": {
       "score": 90.0,
       "source": "holistic",
-      "assessed_at": "2026-11-10T11:08:54+00:00"
+      "assessed_at": "2026-11-10T11:08:54+00:00",
+      "needs_review_refresh": true,
+      "refresh_reason": "review_issue_fixed",
+      "stale_since": "2026-11-10T12:32:18+00:00"
     },
     "contract_coherence": {
       "score": 74.0,
@@ -5163,7 +5434,10 @@
     "incomplete_migration": {
       "score": 90.0,
       "source": "holistic",
-      "assessed_at": "2026-11-10T11:08:54+00:00"
+      "assessed_at": "2026-11-10T11:08:54+00:00",
+      "needs_review_refresh": true,
+      "refresh_reason": "review_issue_fixed",
+      "stale_since": "2026-11-10T12:35:04+00:00"
     },
     "initialization_coupling": {
       "score": 71.0,
@@ -5179,7 +5453,7 @@
       "assessed_at": "2026-11-10T11:08:54+00:00",
       "needs_review_refresh": true,
       "refresh_reason": "review_issue_fixed",
-      "stale_since": "2026-11-10T12:25:43+00:00"
+      "stale_since": "2026-11-10T12:32:18+00:00"
     },
     "low_level_elegance": {
       "score": 66.0,
@@ -5187,7 +5461,7 @@
       "assessed_at": "2026-11-10T11:08:54+00:00",
       "needs_review_refresh": true,
       "refresh_reason": "review_issue_fixed",
-      "stale_since": "2026-11-10T12:25:37+00:00"
+      "stale_since": "2026-11-10T12:32:18+00:00"
     },
     "mid_level_elegance": {
       "score": 66.0,
@@ -5219,7 +5493,7 @@
       "assessed_at": "2026-11-10T11:08:54+00:00",
       "needs_review_refresh": true,
       "refresh_reason": "review_issue_fixed",
-      "stale_since": "2026-11-10T12:30:53+00:00"
+      "stale_since": "2026-11-10T12:35:03+00:00"
     },
     "type_safety": {
       "score": 71.0,
@@ -5227,7 +5501,7 @@
       "assessed_at": "2026-11-10T11:08:54+00:00",
       "needs_review_refresh": true,
       "refresh_reason": "review_issue_fixed",
-      "stale_since": "2026-11-10T12:25:43+00:00"
+      "stale_since": "2026-11-10T12:32:18+00:00"
     }
   },
   "scan_history": [
@@ -5824,11 +6098,11 @@
   },
   "dimension_scores": {
     "Code quality": {
-      "score": 91.6,
-      "strict": 91.6,
+      "score": 96.1,
+      "strict": 91.9,
       "verified_strict_score": 91.6,
       "checks": 95,
-      "failing": 15,
+      "failing": 7,
       "tier": 3,
       "detectors": {
         "unused": {
@@ -5839,9 +6113,9 @@
         },
         "smells": {
           "potential": 13,
-          "pass_rate": 0.676923076923077,
-          "failing": 9,
-          "weighted_failures": 4.2
+          "pass_rate": 0.9307692307692308,
+          "failing": 3,
+          "weighted_failures": 0.8999999999999999
         },
         "orphaned": {
           "potential": 13,
@@ -5863,9 +6137,9 @@
         },
         "dict_keys": {
           "potential": 13,
-          "pass_rate": 0.9230769230769231,
-          "failing": 2,
-          "weighted_failures": 1.0
+          "pass_rate": 1.0,
+          "failing": 0,
+          "weighted_failures": 0.0
         },
         "global_mutable_config": {
           "potential": 13,
@@ -5882,18 +6156,18 @@
       }
     },
     "Security": {
-      "score": 97.3,
+      "score": 100.0,
       "strict": 97.3,
       "verified_strict_score": 97.3,
       "checks": 37,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "cycles": {
           "potential": 13,
-          "pass_rate": 0.9230769230769231,
-          "failing": 1,
-          "weighted_failures": 1.0
+          "pass_rate": 1.0,
+          "failing": 0,
+          "weighted_failures": 0.0
         },
         "security": {
           "potential": 24,
@@ -5992,13 +6266,13 @@
       "strict": 74.0,
       "verified_strict_score": 74.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.74,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 2.6,
           "assessment_score": 74.0,
           "placeholder": false,
@@ -6034,13 +6308,13 @@
       "strict": 90.0,
       "verified_strict_score": 90.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.9,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 1.0,
           "assessment_score": 90.0,
           "placeholder": false,
@@ -6202,13 +6476,13 @@
       "strict": 90.0,
       "verified_strict_score": 90.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.9,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 1.0,
           "assessment_score": 90.0,
           "placeholder": false,
@@ -6244,13 +6518,13 @@
       "strict": 72.0,
       "verified_strict_score": 72.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.72,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 2.8,
           "assessment_score": 72.0,
           "placeholder": false,
@@ -6265,13 +6539,13 @@
       "strict": 66.0,
       "verified_strict_score": 66.0,
       "checks": 10,
-      "failing": 2,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.66,
-          "failing": 2,
+          "failing": 0,
           "weighted_failures": 3.4,
           "assessment_score": 66.0,
           "placeholder": false,
@@ -6349,13 +6623,13 @@
       "strict": 58.0,
       "verified_strict_score": 58.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.58,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 4.2,
           "assessment_score": 58.0,
           "placeholder": false,
@@ -6370,13 +6644,13 @@
       "strict": 71.0,
       "verified_strict_score": 71.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "detectors": {
         "subjective_assessment": {
           "potential": 10,
           "pass_rate": 0.71,
-          "failing": 1,
+          "failing": 0,
           "weighted_failures": 2.9,
           "assessment_score": 71.0,
           "placeholder": false,

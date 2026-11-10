@@ -2,6 +2,7 @@
 
 # Standard Python Libraries
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ TX_BATTERY_STATUS_FIELDS = [
 class PacketPreprocessor:
     """Pre-process loop packets."""
 
-    def process_packet(self, packet: dict) -> dict:
+    def process_packet(self, packet: dict[str, Any]) -> dict[str, Any]:
         """Modify the packet before it is processed."""
         if "txBatteryStatus" in packet:
             bitmap = packet.pop("txBatteryStatus")

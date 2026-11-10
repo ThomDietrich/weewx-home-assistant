@@ -2,123 +2,33 @@
   "command": "next",
   "items": [
     {
-      "id": "review::.::holistic::incomplete_migration::vestigial_time_zone_shim",
-      "confidence": "medium",
-      "detector": "review",
-      "file": ".",
-      "summary": "Unused StationInfo.time_zone/timezone alias remains and is still documented as a configurable option",
-      "detail": {
-        "holistic": true,
-        "dimension": "incomplete_migration",
-        "related_files": [
-          "src/weewx_ha/models/station_info.py",
-          "README.md",
-          "weewx-ha.conf.example"
-        ],
-        "evidence": [
-          "station_info.py:23-29 field description says 'Unused' and kept so existing configs keep validating, with a ZoneInfo validator and default_factory.",
-          "README.md:150 lists 'timezone = <default: UTC>' and weewx-ha.conf.example:24 suggests setting time_zone; nothing in src reads it.",
-          "tests/test_publish.py:30, test_discovery_race.py:50, test_unit_groups.py:109 still pass time_zone='UTC'."
-        ],
-        "suggestion": "Remove the field from README/example config and tests, and either drop it (with extra='forbid' tolerance via an ignored key) or mark it explicitly deprecated with a warning when set.",
-        "reasoning": "",
-        "summary_hash": "db656939"
-      },
-      "status": "open",
-      "kind": "issue",
-      "primary_command": "desloppify plan resolve \"review::.::holistic::incomplete_migration::vestigial_time_zone_shim\" --note \"<what you did>\" --confirm",
-      "queue_position": 1,
-      "plan_cluster": {
-        "name": "readme-timezone-correction",
-        "description": "Correct the one README line that still advertises the station timezone key whose plumbing commit 12d9498 on this branch already removed. Documentation only; the model field deliberately stays.",
-        "total_items": 1,
-        "action_steps": [
-          {
-            "title": "Mark the timezone key as accepted-but-ignored in README.md",
-            "detail": "README.md:150 (`timezone = <default: UTC>`, the last line of the [[station]] block at :146-150) is the only place that still mis-advertises the station timezone. Mark that key accepted-but-ignored there, reusing the wording already in the field description at src/weewx_ha/models/station_info.py:25-27 ('Unused. WeeWX timestamps are Unix epochs and are converted straight to UTC...'). Do NOT drop StationInfo.time_zone (src/weewx_ha/models/station_info.py:23-29): HEAD deliberately keeps the field, with alias='timezone' and populate_by_name=True at :16, so existing user configurations still validate -- which is also why the tests that pass time_zone (e.g. tests/test_publish.py:30) are correct as they stand. README text only, no model change.",
-            "effort": "trivial",
-            "issue_refs": [
-              "review::.::holistic::incomplete_migration::vestigial_time_zone_shim"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "review::.::holistic::test_strategy::controller_event_paths_untested",
+      "id": "workflow::run-scan",
       "confidence": "high",
-      "detector": "review",
+      "detector": "workflow",
       "file": ".",
-      "summary": "Controller event handlers, init wiring, preprocessor, and config models have no tests",
+      "summary": "Run post-flight scan to refresh queue and surface follow-up review work.",
       "detail": {
-        "holistic": true,
-        "dimension": "test_strategy",
-        "related_files": [
-          "src/weewx_ha/controller.py",
-          "src/weewx_ha/preprocessor.py",
-          "src/weewx_ha/models/extension_config.py",
-          "src/weewx_ha/models/tls_config.py",
-          "src/weewx_ha/models/mqtt_config.py"
-        ],
-        "evidence": [
-          "grep of tests/ for PacketPreprocessor, ExtensionConfig, from_config_dict, TLSConfig, on_weewx_loop, on_mqtt_message returns nothing",
-          "Controller.__init__, on_mqtt_connect, on_mqtt_message, on_weewx_loop, on_weewx_archive, check_config_update and shutDown are never exercised; only init_mqtt_client and DB-derived helpers are"
-        ],
-        "suggestion": "Add tests for ExtensionConfig.from_config_dict (valid/invalid conf), TLSConfig validation, PacketPreprocessor, and Controller loop/archive/birth-message handling with a mocked MQTT client and executor.",
-        "reasoning": "",
-        "summary_hash": "754dd47a"
+        "phase": "postflight_scan"
       },
-      "status": "open",
-      "kind": "issue",
-      "primary_command": "desloppify plan resolve \"review::.::holistic::test_strategy::controller_event_paths_untested\" --note \"<what you did>\" --confirm",
-      "queue_position": 2,
-      "plan_cluster": {
-        "name": "from-config-dict-coverage",
-        "description": "Cover ExtensionConfig.from_config_dict on both outcomes in tests/, the one untested path this PR's lifecycle fix actually exercises. The wider integration harness and the catalogue guessing fallback are deferred to the follow-up PR.",
-        "total_items": 1,
-        "action_steps": [
-          {
-            "title": "Cover ExtensionConfig.from_config_dict on both outcomes",
-            "detail": "LINE CORRECTION: ExtensionConfig.from_config_dict is declared at src/weewx_ha/models/extension_config.py:56-66, but only its BODY, lines 61-66, is uncovered -- the decorator and signature execute at import time. `pipenv run pytest --cov=weewx_ha --cov-report=term-missing` reports that file at 77% with `61-66` missing. Add tests under tests/ for both outcomes: a valid HomeAssistant stanza returns an ExtensionConfig carrying the expected node_id and the METRICWX default from :48-50; an invalid one -- an unknown key suffices, since extra='forbid' is set at :19 -- raises ValidationError out of :65. ASSERTION CORRECTION from the sense-check: do NOT assert 'exactly one logger.error' here. from_config_dict contains exactly one logger.error, at :64, and the controller-init-lifecycle-contract cluster's duplicate-log step decides which of the two reports survives -- make this test assert the count that matches that decision. If the model's log goes, assert zero records from this module and put the single-log assertion in a Controller-level test instead, where the surviving logger.error at src/weewx_ha/controller.py:105-108 fires. Also cover `config_dict.get(key, {})` at :61: a config_dict with no HomeAssistant key must raise rather than silently return defaults.",
-            "effort": "small",
-            "issue_refs": [
-              "review::.::holistic::test_strategy::controller_event_paths_untested"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration",
-      "confidence": "high",
-      "detector": "dict_keys",
-      "file": "src/weewx_ha/config_publisher.py",
-      "summary": "Dict key \"integration\" read at line 130 but never written to `config`",
-      "detail": {
-        "kind": "phantom_read",
-        "key": "integration",
-        "line": 130,
-        "info": "Created at line 125 in process_packet() \u2014 will raise KeyError or return None via .get()"
-      },
-      "status": "open",
-      "kind": "issue",
-      "primary_command": "desloppify plan resolve \"dict_keys::src/weewx_ha/config_publisher.py::phantom_read::config::integration\" --note \"<what you did>\" --confirm",
-      "queue_position": 3
+      "status": null,
+      "kind": "workflow_action",
+      "primary_command": "desloppify scan",
+      "queue_position": 1
     }
   ],
   "queue": {
-    "total": 3,
+    "total": 1,
     "mode": "execution"
   },
   "narrative": {
     "phase": "early_momentum",
-    "headline": "Score 78.8/100 with 22 issues open. Keep the momentum going. (2 review work items \u2014 run `desloppify show review --status open`)",
+    "headline": "All T1 items cleared!",
     "dimensions": {
       "lowest_dimensions": [
         {
           "name": "Test strategy",
           "strict": 58.0,
-          "failing": 1,
+          "failing": 0,
           "impact": 0.0,
           "subjective": true,
           "impact_description": "re-review to improve"
@@ -140,21 +50,25 @@
           "impact_description": "re-review to improve"
         }
       ],
-      "biggest_gap_dimensions": [],
+      "biggest_gap_dimensions": [
+        {
+          "name": "Code quality",
+          "lenient": 96.1,
+          "strict": 91.9,
+          "gap": 4.2,
+          "wontfix_count": 7
+        },
+        {
+          "name": "Security",
+          "lenient": 100.0,
+          "strict": 97.3,
+          "gap": 2.7,
+          "wontfix_count": 1
+        }
+      ],
       "stagnant_dimensions": []
     },
     "actions": [
-      {
-        "type": "reorganize",
-        "detector": "cycles",
-        "count": 1,
-        "description": "1 cycles issues \u2014 break cycles by extracting shared code or using `desloppify move`",
-        "command": "desloppify show cycles --status open",
-        "impact": 0.0,
-        "dimension": "Security",
-        "priority": 1,
-        "lane": "restructure"
-      },
       {
         "type": "reorganize",
         "detector": "facade",
@@ -163,7 +77,7 @@
         "command": "desloppify show facade --status open",
         "impact": 0.0,
         "dimension": "Code quality",
-        "priority": 2,
+        "priority": 1,
         "lane": "restructure"
       },
       {
@@ -174,40 +88,18 @@
         "command": "desloppify show structural --status open",
         "impact": 0.0,
         "dimension": "File health",
-        "priority": 3,
+        "priority": 2,
         "lane": "refactor_0"
-      },
-      {
-        "type": "refactor",
-        "detector": "dict_keys",
-        "count": 2,
-        "description": "2 dict_keys work items \u2014 fix dict key mismatches \u2014 dead writes are likely dead code, schema drift suggests a typo or missed rename",
-        "command": "desloppify show dict_keys --status open",
-        "impact": 0.0,
-        "dimension": "Code quality",
-        "priority": 4,
-        "lane": "refactor_0"
-      },
-      {
-        "type": "refactor",
-        "detector": "review",
-        "count": 2,
-        "description": "2 review work items need investigation \u2014 run `desloppify show review --status open` to see them",
-        "command": "desloppify show review --status open",
-        "impact": 0.0,
-        "dimension": "Unknown",
-        "priority": 5,
-        "lane": "refactor_1"
       },
       {
         "type": "manual_fix",
         "detector": "smells",
-        "count": 9,
-        "description": "9 smells issues \u2014 inspect with `desloppify next` and fix manually",
+        "count": 3,
+        "description": "3 smells issues \u2014 inspect with `desloppify next` and fix manually",
         "command": "desloppify show smells --status open",
         "impact": 0.0,
         "dimension": "Code quality",
-        "priority": 6,
+        "priority": 3,
         "lane": "refactor_0"
       },
       {
@@ -218,14 +110,14 @@
         "command": "desloppify show global_mutable_config --status open",
         "impact": 0.0,
         "dimension": "Code quality",
-        "priority": 7,
-        "lane": "refactor_0"
+        "priority": 4,
+        "lane": "refactor_1"
       }
     ],
     "strategy": {
       "fixer_leverage": {
         "auto_fixable_count": 0,
-        "total_count": 26,
+        "total_count": 8,
         "coverage": 0.0,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -233,8 +125,7 @@
       "lanes": {
         "restructure": {
           "actions": [
-            1,
-            2
+            1
           ],
           "file_count": 2,
           "total_impact": 0.0,
@@ -243,19 +134,17 @@
         },
         "refactor_0": {
           "actions": [
-            3,
-            4,
-            6,
-            7
+            2,
+            3
           ],
-          "file_count": 4,
+          "file_count": 2,
           "total_impact": 0.0,
           "automation": "manual",
           "run_first": false
         },
         "refactor_1": {
           "actions": [
-            5
+            4
           ],
           "file_count": 1,
           "total_impact": 0.0,
@@ -264,13 +153,13 @@
         }
       },
       "can_parallelize": false,
-      "hint": "Work through actions in priority order. Rescan after each fix to track progress. Review: 2 issue(s) \u2014 `desloppify show review --status open`."
+      "hint": "Work through actions in priority order. Rescan after each fix to track progress."
     },
     "tools": {
       "fixers": [],
       "move": {
         "available": true,
-        "relevant": true,
+        "relevant": false,
         "reason": null,
         "usage": "desloppify move <source> <dest> [--dry-run]"
       },
@@ -286,18 +175,18 @@
       }
     },
     "debt": {
-      "overall_gap": 0.0,
-      "wontfix_count": 41,
-      "worst_dimension": null,
-      "worst_gap": 0.0,
+      "overall_gap": 0.2,
+      "wontfix_count": 52,
+      "worst_dimension": "Code quality",
+      "worst_gap": 4.2,
       "trend": "stable"
     },
-    "milestone": null,
+    "milestone": "All T1 items cleared!",
     "primary_action": {
-      "command": "desloppify show cycles --status open",
-      "description": "1 cycles issues \u2014 break cycles by extracting shared code or using `desloppify move`"
+      "command": "desloppify show facade --status open",
+      "description": "2 facade issues \u2014 flatten re-export facades or consolidate barrel files"
     },
-    "why_now": "Work through actions in priority order. Rescan after each fix to track progress. Review: 2 issue(s) \u2014 `desloppify show review --status open`.",
+    "why_now": "Work through actions in priority order. Rescan after each fix to track progress.",
     "verification_step": {
       "command": "desloppify scan",
       "reason": "revalidate after changes"
@@ -305,25 +194,18 @@
     "risk_flags": [
       {
         "type": "wontfix_gap",
-        "severity": "medium",
-        "message": "Strict/lenient gap is 0.0 pts with 41 wontfix issues"
+        "severity": "high",
+        "message": "Strict/lenient gap is 0.2 pts with 52 wontfix issues"
       }
     ],
     "strict_target": {
       "target": 85.0,
-      "current": 78.8,
-      "gap": 6.2,
+      "current": 78.9,
+      "gap": 6.1,
       "state": "below",
       "warning": null
     },
     "reminders": [
-      {
-        "type": "review_issues_pending",
-        "message": "2 review work item(s) need investigation. Run `desloppify show review --status open` to see the work queue.",
-        "command": "desloppify show review --status open",
-        "priority": 1,
-        "severity": "high"
-      },
       {
         "type": "zone_classification",
         "message": "11 of 24 files classified as non-production (11 test). Override with `desloppify zone set <file> production` if any are misclassified.",
@@ -334,8 +216,7 @@
     ],
     "reminder_history": {
       "zone_classification": 2,
-      "report_scores": 1,
-      "review_issues_pending": 1
+      "report_scores": 1
     }
   },
   "agent_notes": [
@@ -383,13 +264,13 @@
         "item_count": 1
       }
     ],
-    "total_ordered": 19,
-    "total_skipped": 41,
+    "total_ordered": 20,
+    "total_skipped": 52,
     "plan_overrides_narrative": true
   },
-  "overall_score": 78.8,
-  "objective_score": 96.8,
-  "strict_score": 78.8,
+  "overall_score": 79.3,
+  "objective_score": 98.4,
+  "strict_score": 78.9,
   "scorecard_dimensions": [
     {
       "name": "File health",
@@ -441,10 +322,10 @@
     },
     {
       "name": "Code quality",
-      "score": 91.6,
-      "strict": 91.6,
+      "score": 96.1,
+      "strict": 91.9,
       "checks": 95,
-      "failing": 15,
+      "failing": 7,
       "tier": 3,
       "subjective": false
     },
@@ -578,10 +459,10 @@
     },
     {
       "name": "Security",
-      "score": 97.3,
+      "score": 100.0,
       "strict": 97.3,
       "checks": 37,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "subjective": false
     },
@@ -612,7 +493,7 @@
       "score": 58.0,
       "strict": 58.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "subjective": true,
       "placeholder": false,
@@ -811,7 +692,7 @@
       "score": 58.0,
       "strict": 58.0,
       "checks": 10,
-      "failing": 1,
+      "failing": 0,
       "tier": 4,
       "subjective": true,
       "placeholder": false,
