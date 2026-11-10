@@ -19,7 +19,9 @@
         name = Weather Station
         model = Vantage Pro2
         manufacturer = Davis Instruments
-        time_zone = Europe/Prague  # or use 'timezone' alias
+        # time_zone is accepted but unused: timestamps are converted
+        # straight from the Unix epoch to UTC
+        # time_zone = Europe/Prague  # or use 'timezone' alias
 
     # Integration settings
     node_id = weewx

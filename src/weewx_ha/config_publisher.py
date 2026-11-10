@@ -4,7 +4,6 @@
 import json
 import logging
 from typing import Any
-from zoneinfo import ZoneInfo
 
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
@@ -95,8 +94,6 @@ class ConfigPublisher:
                 "support_url": "https://github.com/ThomDietrich/weewx-home-assistant",
             }
         }
-
-        self.time_zone: ZoneInfo = station_info.time_zone
 
         # Dictionary to hold measurement configuration and metadata. A plain
         # dict, not a defaultdict: a bare lookup must not invent an entry.

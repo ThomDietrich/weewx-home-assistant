@@ -80,6 +80,13 @@ later using [Python](https://www.python.org/) version `3.10` or later.
 pip install git+https://github.com/felddy/weewx-home-assistant@v1.0.0
 ```
 
+> [!IMPORTANT]
+> Install into the same Python that runs `weewxd`, not whichever `pip` comes
+> first on your `PATH`. WeeWX otherwise starts with
+> `ModuleNotFoundError: No module named 'weewx_ha'`. If WeeWX lives in a
+> virtual environment, activate it first, or install with that interpreter
+> directly: `/path/to/weewx/bin/python -m pip install git+...`.
+
 ## Configuration ##
 
 Add the extension controller to `report_services` in the `weewx.conf` file:
