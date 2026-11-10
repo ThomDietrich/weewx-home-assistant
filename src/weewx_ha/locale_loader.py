@@ -67,6 +67,17 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
     return result
 
 
+def _invalidate_caches() -> None:
+    """Drop the utils caches built from the locale state being replaced.
+
+    Imported inside the function on purpose: ``utils`` imports this module for
+    its loaders, so a module-scope import back would be circular.
+    """
+    from .utils import reset_caches
+
+    reset_caches()
+
+
 def set_language(language: str | None) -> None:
     """Set the current language for loading localized YAML files.
 
@@ -78,6 +89,7 @@ def set_language(language: str | None) -> None:
     """
     global _current_language
     _current_language = language
+    _invalidate_caches()
     logger.info(f"Language set to: {language or 'default (fallback)'}")
 
 
@@ -104,6 +116,7 @@ def set_config_overrides(overrides: dict[str, Any] | None) -> None:
     """
     global _config_overrides
     _config_overrides = overrides
+    _invalidate_caches()
     logger.info(
         f"Config overrides set: {list(overrides.keys()) if overrides else 'None'}"
     )

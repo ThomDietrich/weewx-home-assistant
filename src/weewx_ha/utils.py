@@ -16,10 +16,13 @@ from .locale_loader import load_enums, load_sensors, load_units
 
 logger = logging.getLogger(__name__)
 
-# Global caches for lazy-loaded configuration
+# Global caches for lazy-loaded configuration. All four are built from the
+# locale_loader globals and dropped together by reset_caches below; declaring
+# them in one place is what keeps that pairing visible.
 _ENUM_MAPS: dict[str, dict[int, str]] | None = None
 _UNIT_METADATA: dict[str, dict[str, Any]] | None = None
 _SENSORS_YAML: dict[str, Any] | None = None
+_KEY_CONFIG: dict[str, Any] | None = None
 
 
 def _ensure_loaded() -> None:
@@ -31,6 +34,22 @@ def _ensure_loaded() -> None:
         _UNIT_METADATA = load_units()
     if _SENSORS_YAML is None:
         _SENSORS_YAML = load_sensors()
+
+
+def reset_caches() -> None:
+    """Drop every cache built from the current locale state.
+
+    The caches above are built once from the ``locale_loader`` globals and never
+    rebuilt, so changing the language or the config overrides afterwards has no
+    effect on anything already loaded. ``locale_loader``'s setters call this so
+    a locale change is a locale change, whenever it happens, instead of a silent
+    no-op that depends on whether anyone has read a sensor yet.
+    """
+    global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML, _KEY_CONFIG
+    _ENUM_MAPS = None
+    _UNIT_METADATA = None
+    _SENSORS_YAML = None
+    _KEY_CONFIG = None
 
 
 def get_enum_maps() -> dict[str, dict[int, str]]:
@@ -248,10 +267,6 @@ def _build_key_config() -> dict[str, Any]:
                 del sensor_config["convert_lambda"]
 
     return config
-
-
-# Global cache for KEY_CONFIG
-_KEY_CONFIG: dict[str, Any] | None = None
 
 
 def get_key_config_dict() -> dict[str, Any]:

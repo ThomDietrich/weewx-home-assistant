@@ -21,21 +21,10 @@ from itertools import product
 import pytest
 
 # Geekpad Libraries
-from weewx_ha.locale_loader import set_config_overrides, set_language
 from weewx_ha.preprocessor import TX_BATTERY_STATUS_FIELDS, PacketPreprocessor
 from weewx_ha.utils import get_key_config
 
 ALL_BITMAPS = range(256)
-
-
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
 
 
 def _payloads(field):
@@ -48,7 +37,7 @@ def _process(value):
     return PacketPreprocessor().process_packet({"txBatteryStatus": value})
 
 
-def test_every_battery_field_uses_a_payload_the_catalogue_declares(reset_locale_state):
+def test_every_battery_field_uses_a_payload_the_catalogue_declares():
     """Published values must be the payloads Home Assistant is told to match.
 
     This is the defect: the fan-out publishes the bit's weight, so every field
@@ -68,7 +57,7 @@ def test_every_battery_field_uses_a_payload_the_catalogue_declares(reset_locale_
     assert index == len(TX_BATTERY_STATUS_FIELDS) - 1  # the loop covered them all
 
 
-def test_all_transmitters_report_low_when_every_bit_is_set(reset_locale_state):
+def test_all_transmitters_report_low_when_every_bit_is_set():
     """A bitmap of 255 means all eight transmitters are low, not just the ISS."""
     packet = _process(255)
     for field in TX_BATTERY_STATUS_FIELDS:
@@ -77,7 +66,7 @@ def test_all_transmitters_report_low_when_every_bit_is_set(reset_locale_state):
 
 
 @pytest.mark.parametrize("index", range(len(TX_BATTERY_STATUS_FIELDS)))
-def test_one_bit_marks_exactly_one_transmitter(index, reset_locale_state):
+def test_one_bit_marks_exactly_one_transmitter(index):
     """Bit n flags transmitter n and leaves the other seven alone."""
     packet = _process(1 << index)
     for other, field in enumerate(TX_BATTERY_STATUS_FIELDS):

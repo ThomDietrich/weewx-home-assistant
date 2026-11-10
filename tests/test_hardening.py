@@ -1,21 +1,8 @@
 """Regression tests for the data-quality and robustness hardening fixes."""
 
-# Third-Party Libraries
-import pytest
-
 # Geekpad Libraries
-from weewx_ha.locale_loader import _deep_merge, set_config_overrides, set_language
+from weewx_ha.locale_loader import _deep_merge
 from weewx_ha.utils import _beaufort_label, get_enum_maps, get_key_config
-
-
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
 
 
 def test_deep_merge_reconciles_str_override_with_int_base():
@@ -46,7 +33,7 @@ def test_deep_merge_preserves_named_string_keys():
     assert merged["outTemp"]["metadata"]["name"] == "Custom"
 
 
-def test_beaufort_label_clamps_out_of_range(reset_locale_state):
+def test_beaufort_label_clamps_out_of_range():
     """Out-of-range forces clamp to a label that is a valid enum option."""
     scale = get_enum_maps()["beaufort_scale"]
     keys = sorted(scale.keys())
@@ -54,14 +41,14 @@ def test_beaufort_label_clamps_out_of_range(reset_locale_state):
     assert _beaufort_label(keys[0] - 5) == scale[keys[0]]
 
 
-def test_beaufort_label_valid_value(reset_locale_state):
+def test_beaufort_label_valid_value():
     """In-range forces map to their declared label."""
     scale = get_enum_maps()["beaufort_scale"]
     assert _beaufort_label(0) == scale[0]
     assert _beaufort_label(min(scale.keys()) + 1) == scale[min(scale.keys()) + 1]
 
 
-def test_get_key_config_returns_isolated_copy(reset_locale_state):
+def test_get_key_config_returns_isolated_copy():
     """Mutating a returned key config must not corrupt the shared cache."""
     first = get_key_config("outTemp")
     first["metadata"]["name"] = "MUTATED"

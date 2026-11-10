@@ -22,24 +22,13 @@ import pytest
 # Geekpad Libraries
 from weewx_ha import ConfigPublisher, UnitSystem
 import weewx_ha.config_publisher as config_publisher
-from weewx_ha.locale_loader import set_config_overrides, set_language
 from weewx_ha.models import StationInfo
 
 METRICWX = int(UnitSystem.METRICWX)
 
 
 @pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
-
-
-@pytest.fixture
-def publisher(reset_locale_state):
+def publisher():
     """Build a ConfigPublisher wired to a mock MQTT client."""
     return ConfigPublisher(
         MagicMock(),

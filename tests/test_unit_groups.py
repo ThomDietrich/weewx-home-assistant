@@ -22,7 +22,6 @@ from weewx.units import getStandardUnitType, to_std_system
 from weewx_ha import ConfigPublisher, UnitSystem
 import weewx_ha.config_publisher as config_publisher
 import weewx_ha.controller  # noqa: F401  (the import performs the registration)
-from weewx_ha.locale_loader import set_config_overrides, set_language
 from weewx_ha.models import StationInfo
 from weewx_ha.utils import get_key_config_dict
 
@@ -64,17 +63,7 @@ BASE_NAME_TEMPLATES = frozenset(
 )
 
 
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
-
-
-def test_every_sensor_resolves_a_unit_or_declares_it_has_none(reset_locale_state):
+def test_every_sensor_resolves_a_unit_or_declares_it_has_none():
     """Nothing may fall through get_unit_metadata unresolved any more.
 
     get_unit_metadata used to guess a unit from the measurement name, which
@@ -111,7 +100,7 @@ def _publisher():
     )
 
 
-def test_unitless_keys_skip_the_unit_lookup(reset_locale_state):
+def test_unitless_keys_skip_the_unit_lookup():
     """A unit-less key must not reach get_unit_metadata at all."""
     publisher = _publisher()
     with patch.object(config_publisher, "get_unit_metadata") as lookup:
@@ -121,7 +110,7 @@ def test_unitless_keys_skip_the_unit_lookup(reset_locale_state):
     assert "unitless" not in publisher.seen_measurements["beaufort"]
 
 
-def test_measured_keys_still_use_the_unit_lookup(reset_locale_state):
+def test_measured_keys_still_use_the_unit_lookup():
     """An ordinary measurement keeps resolving its unit through WeeWX."""
     publisher = _publisher()
     publisher.process_packet({"usUnits": weewx.US, "outTemp": 68.0})

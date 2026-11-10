@@ -3,9 +3,6 @@
 # Standard Python Libraries
 from typing import Any
 
-# Third-Party Libraries
-import pytest
-
 # Geekpad Libraries
 from weewx_ha.locale_loader import (
     get_config_overrides,
@@ -17,17 +14,7 @@ from weewx_ha.locale_loader import (
 )
 
 
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
-
-
-def test_config_overrides_sensors(reset_locale_state):
+def test_config_overrides_sensors():
     """Test that sensor configuration can be overridden from config."""
     # Set up overrides
     overrides = {
@@ -50,7 +37,7 @@ def test_config_overrides_sensors(reset_locale_state):
     assert "device_class" in sensors["outTemp"]["metadata"]
 
 
-def test_config_overrides_units(reset_locale_state):
+def test_config_overrides_units():
     """Test that unit metadata can be overridden from config."""
     # Set up overrides
     overrides = {
@@ -71,7 +58,7 @@ def test_config_overrides_units(reset_locale_state):
     assert units["degree_C"]["unit_of_measurement"] == "°C"
 
 
-def test_config_overrides_enums(reset_locale_state):
+def test_config_overrides_enums():
     """Test that enum mappings can be overridden from config."""
     # Set up overrides
     overrides = {
@@ -94,7 +81,7 @@ def test_config_overrides_enums(reset_locale_state):
     assert 2 in enums["cardinal_directions"]
 
 
-def test_config_overrides_priority_over_localized(reset_locale_state):
+def test_config_overrides_priority_over_localized():
     """Test that config overrides have priority over localized YAML."""
     # Set language to Czech
     set_language("cs")
@@ -118,7 +105,7 @@ def test_config_overrides_priority_over_localized(reset_locale_state):
     assert sensors["outTemp"]["metadata"]["name"] == "Config Override Name"
 
 
-def test_partial_override(reset_locale_state):
+def test_partial_override():
     """Test that partial overrides only change specified fields."""
     # Load original data
     set_config_overrides(None)
@@ -152,7 +139,7 @@ def test_partial_override(reset_locale_state):
     )
 
 
-def test_multiple_override_types(reset_locale_state):
+def test_multiple_override_types():
     """Test that multiple override types (sensors, units, enums) work together."""
     # Set up overrides for all types
     overrides = {
@@ -183,7 +170,7 @@ def test_multiple_override_types(reset_locale_state):
     assert enums["cardinal_directions"][0] == "Custom N"
 
 
-def test_get_set_config_overrides(reset_locale_state):
+def test_get_set_config_overrides():
     """Test getter and setter for config overrides."""
     # Initially should be None
     assert get_config_overrides() is None
@@ -200,7 +187,7 @@ def test_get_set_config_overrides(reset_locale_state):
     assert get_config_overrides() is None
 
 
-def test_no_overrides(reset_locale_state):
+def test_no_overrides():
     """Test that loading works normally when no overrides are set."""
     set_config_overrides(None)
 
