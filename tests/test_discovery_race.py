@@ -40,7 +40,7 @@ def reset_locale_state():
 
 @pytest.fixture
 def publisher(reset_locale_state):
-    """A ConfigPublisher wired to a mock MQTT client."""
+    """Build a ConfigPublisher wired to a mock MQTT client."""
     return ConfigPublisher(
         MagicMock(),
         "weather/status",
