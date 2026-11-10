@@ -6,11 +6,8 @@ from types import SimpleNamespace
 # Third-Party Libraries
 import pytest
 
-from weewx_ha.controller import (
-    DAILY_SUNSHINE_KEY,
-    DAILY_SUNSHINE_SOURCE,
-    Controller,
-)
+# Geekpad Libraries
+from weewx_ha.controller import DAILY_SUNSHINE_KEY, DAILY_SUNSHINE_SOURCE, Controller
 
 
 class _FakeManager:
@@ -54,6 +51,7 @@ def _stub(manager):
 
 
 def test_augment_db_derived_adds_all_aggregates():
+    """Every DB-derived aggregate lands in the archive record."""
     dt = 1782826200
     mgr = _FakeManager(
         sums={"sunshine": 18000.0, "hourRain": 0.02, "rain24": 0.5, "dayET": 0.1},
@@ -109,6 +107,7 @@ def test_augment_db_derived_without_sunshine_source():
 
 
 def test_augment_db_derived_null_sums_are_zero():
+    """A SUM over no rows publishes zero rather than None."""
     dt = 1782826200
     mgr = _FakeManager(sums={})  # all SUMs return None (no rows)
     record = {"dateTime": dt, "ET": 0.0, "usUnits": 1}
@@ -122,6 +121,7 @@ def test_augment_db_derived_null_sums_are_zero():
 
 
 def test_event_rain_only_most_recent_event():
+    """A dry gap of at least the MIT ends an event, excluding older rain."""
     dt = 1_000_000
     # Old event (0.5) then a >6 h dry gap, then the current event (0.3 + 0.4).
     rows = [(dt - 30000, 0.5), (dt - 100, 0.3), (dt - 50, 0.4)]
@@ -134,6 +134,7 @@ def test_event_rain_only_most_recent_event():
 
 
 def test_event_rain_merges_within_gap():
+    """Showers closer together than the MIT count as a single event."""
     dt = 1_000_000
     # All within 6 h of each other -> one event.
     rows = [(dt - 10000, 0.2), (dt - 5000, 0.3), (dt - 100, 0.5)]
@@ -146,6 +147,7 @@ def test_event_rain_merges_within_gap():
 
 
 def test_event_rain_empty_is_zero():
+    """With no rain rows the event total is zero and carries no bounds."""
     total, start, end = Controller._compute_event_rain(
         _FakeManager(event_rows=[]), "archive", 1000
     )
@@ -155,6 +157,7 @@ def test_event_rain_empty_is_zero():
 
 
 def test_day_extreme_returns_value_and_time():
+    """A day extreme comes back with the timestamp at which it occurred."""
     dt = 1_000_000
     mgr = _FakeManager(
         extremes={
@@ -177,5 +180,6 @@ def test_day_extreme_returns_value_and_time():
 
 
 def test_day_extreme_none_when_empty():
+    """A day with no rows yields neither a value nor a timestamp."""
     mgr = _FakeManager(extremes={})
     assert Controller._day_extreme(mgr, "archive", 0, 1000, True) == (None, None)

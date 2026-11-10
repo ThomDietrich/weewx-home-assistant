@@ -44,8 +44,11 @@ def _config_publisher(client):
 
 
 def test_discovery_is_retained_qos1_with_precision(reset_locale_state):
-    """Discovery is retained at QoS 1 and carries suggested_display_precision
-    (and no rounding value_template)."""
+    """Discovery is retained at QoS 1 with suggested_display_precision.
+
+    It must carry no rounding value_template, so the raw value reaches the
+    database at full precision.
+    """
     client = MagicMock()
     cp = _config_publisher(client)
     cp.process_packet({"usUnits": METRICWX, "outTemp": 21.347})

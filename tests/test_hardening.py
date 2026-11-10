@@ -19,7 +19,7 @@ def reset_locale_state():
 
 
 def test_deep_merge_reconciles_str_override_with_int_base():
-    """ConfigObj override keys arrive as strings; they must replace int base keys.
+    """Override keys arrive from ConfigObj as strings and must replace int keys.
 
     This is the exact path that silently no-op'd enum overrides before the fix.
     """

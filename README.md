@@ -30,7 +30,8 @@ for availability messages.
 > no `statistics`/`utility_meter` helpers (which stall when the station reports no
 > change during long dry spells):
 >
-> - **Rolling rainfall** — `hourRain` / `rain24`, totals over the trailing 1 h / 24 h.
+> - **Rolling rainfall** — `hourRain` / `rain24`, totals over the trailing
+>   1 h / 24 h.
 > - **Rain event** — `eventRain`, the rainfall of the most recent shower (consecutive
 >   showers count as one event until a ≥ 6 h dry gap, the Minimum Inter-event Time),
 >   bracketed by `eventRainStart` / `eventRainEnd` / `eventRainDuration`.

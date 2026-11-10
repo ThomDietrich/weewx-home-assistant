@@ -14,9 +14,9 @@ from typing import Any
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
 from weeutil.weeutil import startOfDay  # type: ignore
-import weewx.units  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
+import weewx.units  # type: ignore
 
 from . import ConfigPublisher, PacketPreprocessor, StatePublisher
 from .locale_loader import set_config_overrides, set_language
@@ -70,7 +70,7 @@ ARCHIVE_DATA_BINDING = "wx_binding"
 # that starve when the station reports no change during dry periods.
 HOUR_S = 3600
 DAY_S = 86400
-RAIN_EVENT_GAP_S = 6 * 3600            # >= 6 h dry separates rain events (MIT/IETD)
+RAIN_EVENT_GAP_S = 6 * 3600  # >= 6 h dry separates rain events (MIT/IETD)
 RAIN_EVENT_LOOKBACK_S = 30 * 86400
 
 
@@ -363,7 +363,7 @@ class Controller(StdService):
 
             def _sum(column: str, start: float) -> float:
                 row = manager.getSql(
-                    f"SELECT SUM({column}) FROM {table} "
+                    f"SELECT SUM({column}) FROM {table} "  # nosec B608
                     "WHERE dateTime > ? AND dateTime <= ?",
                     (start, dt),
                 )
@@ -417,7 +417,7 @@ class Controller(StdService):
         recs = [
             (r[0], r[1])
             for r in manager.genSql(
-                f"SELECT dateTime, rain FROM {table} "
+                f"SELECT dateTime, rain FROM {table} "  # nosec B608
                 "WHERE rain > 0 AND dateTime > ? AND dateTime <= ? "
                 "ORDER BY dateTime ASC",
                 (dt - RAIN_EVENT_LOOKBACK_S, dt),
@@ -451,7 +451,7 @@ class Controller(StdService):
         """
         order = "DESC" if descending else "ASC"
         row = manager.getSql(
-            f"SELECT {column}, dateTime FROM {table} "
+            f"SELECT {column}, dateTime FROM {table} "  # nosec B608
             f"WHERE dateTime > ? AND dateTime <= ? AND {column} IS NOT NULL "
             f"ORDER BY {column} {order}, dateTime ASC LIMIT 1",
             (day_start, dt),
