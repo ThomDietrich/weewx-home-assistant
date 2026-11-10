@@ -602,6 +602,15 @@ rain24:
     name: "24-Hour Rainfall"
     state_class: "measurement"
 
+rainAlarm:
+  integration: "binary_sensor"
+  metadata:
+    enabled_by_default: false
+    icon: "mdi:alarm-light"
+    name: "Rain Alarm"
+    payload_off: 0
+    payload_on: 1
+
 rainDur:
   metadata:
     device_class: "duration"
