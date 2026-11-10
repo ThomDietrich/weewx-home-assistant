@@ -1,7 +1,6 @@
 """Processes loop packets and publish MQTT discovery configurations."""
 
 # Standard Python Libraries
-from collections import defaultdict
 import json
 import logging
 from typing import Any
@@ -99,8 +98,9 @@ class ConfigPublisher:
 
         self.time_zone: ZoneInfo = station_info.time_zone
 
-        # Dictionary to hold measurement configuration and metadata
-        self.seen_measurements: dict[str, dict[str, Any]] = defaultdict(dict)
+        # Dictionary to hold measurement configuration and metadata. A plain
+        # dict, not a defaultdict: a bare lookup must not invent an entry.
+        self.seen_measurements: dict[str, dict[str, Any]] = {}
 
     def process_packet(self, packet: dict) -> bool:
         """
@@ -125,11 +125,15 @@ class ConfigPublisher:
             if key not in self.seen_measurements:
                 logger.debug(f"Discovered new measurement: {key}")
                 found_new_measurements = True
-                self.seen_measurements[key] |= get_key_config(key)
+                config = dict(get_key_config(key))
                 # Unit metadata is underlaid with the metadata from the key
-                self.seen_measurements[key]["metadata"] = get_unit_metadata(
+                config["metadata"] = get_unit_metadata(
                     key, self.unit_system
-                ) | self.seen_measurements[key].get("metadata", {})
+                ) | config.get("metadata", {})
+                # Publish the entry only once it is complete: publish_discovery
+                # runs on the other worker thread and must never observe a
+                # configuration that still lacks its metadata.
+                self.seen_measurements[key] = config
 
                 # Check if there are any derived sensors that use this key as source
                 if self._discover_derived_sensors(key):
@@ -163,17 +167,15 @@ class ConfigPublisher:
                     logger.info(
                         f"Discovered derived measurement: {sensor_name} from source {source_key}"
                     )
-                    self.seen_measurements[sensor_name] = get_key_config(
-                        sensor_name
-                    ).copy()
-                    # Derived sensors typically don't need unit metadata since they have custom conversion
-                    # But if they don't have unit_of_measurement explicitly set, use None
-                    if "unit_of_measurement" not in self.seen_measurements[
-                        sensor_name
-                    ].get("metadata", {}):
-                        self.seen_measurements[sensor_name].setdefault("metadata", {})[
-                            "unit_of_measurement"
-                        ] = None
+                    config = dict(get_key_config(sensor_name))
+                    # Derived sensors typically don't need unit metadata since
+                    # they have custom conversion, but an absent
+                    # unit_of_measurement is spelled out as None
+                    metadata = dict(config.get("metadata", {}))
+                    metadata.setdefault("unit_of_measurement", None)
+                    config["metadata"] = metadata
+                    # Built first, inserted once (see process_packet)
+                    self.seen_measurements[sensor_name] = config
                     found_derived = True
                 else:
                     logger.debug(
@@ -197,10 +199,11 @@ class ConfigPublisher:
         -------
         None
         """
-        logger.info(
-            f"Publishing {len(self.seen_measurements)} discovery configurations"
-        )
-        for sensor_name, config in self.seen_measurements.items():
+        # Iterate a snapshot: process_packet inserts from the other worker
+        # thread, which would otherwise raise RuntimeError mid-publish.
+        measurements = list(self.seen_measurements.items())
+        logger.info(f"Publishing {len(measurements)} discovery configurations")
+        for sensor_name, config in measurements:
             # Construct discovery topic
             integration = config.get("integration", "sensor")
             discovery_topic = f"{self.discovery_topic_prefix}/{integration}/{self.node_id}/{sensor_name}/config"
