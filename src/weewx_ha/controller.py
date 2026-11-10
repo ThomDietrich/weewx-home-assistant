@@ -32,6 +32,13 @@ for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
 for _obs in ("dayMaxOutTemp", "dayMinOutTemp"):
     weewx.units.obs_group_dict.setdefault(_obs, "group_temperature")
 weewx.units.obs_group_dict.setdefault("dayMaxWindGust", "group_speed")
+# monthET and yearET are not derived here -- stations such as the Vantage report
+# them in LOOP packets -- but WeeWX registers no unit group for them either. They
+# therefore skipped conversion while discovery still labelled them with the
+# target system's unit, so a US station's inches were published as millimetres:
+# a silent factor 25.4. See felddy/weewx-home-assistant#62.
+for _obs in ("monthET", "yearET"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 # TODO Add command topics to control configuration settings
 
