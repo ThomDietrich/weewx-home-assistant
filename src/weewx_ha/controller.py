@@ -191,10 +191,12 @@ class Controller(StdService):
         client.on_connect_fail = self.on_mqtt_connect_fail
         if mqtt_config.use_tls:
             client.tls_set_context(mqtt_config.tls.context)
-        if mqtt_config.username and mqtt_config.password:
-            client.username_pw_set(
-                mqtt_config.username, mqtt_config.password.get_secret_value()
-            )
+        # No guard: MQTTConfig requires a username of at least one character
+        # and rejects an empty password, so there is no configuration that
+        # reaches here without credentials.
+        client.username_pw_set(
+            mqtt_config.username, mqtt_config.password.get_secret_value()
+        )
         # Set the last will and testament. The will travels inside the CONNECT
         # packet, so it has to be registered before the connection is made.
         client.will_set(availability_topic, "offline", qos=1, retain=True)

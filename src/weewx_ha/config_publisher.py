@@ -11,7 +11,7 @@ from weewx.units import to_std_system  # type: ignore
 
 from ._version import __version__
 from .models import StationInfo
-from .utils import UnitSystem, get_key_config, get_unit_metadata
+from .utils import UnitSystem, get_key_config, get_key_config_dict, get_unit_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +116,7 @@ class ConfigPublisher:
         """
         logger.debug("Processing packet")
         found_new_measurements = False
-        if self.unit_system is not None:
-            packet = to_std_system(packet, int(self.unit_system))
+        packet = to_std_system(packet, int(self.unit_system))
         for key in packet.keys():
             if key not in self.seen_measurements:
                 logger.debug(f"Discovered new measurement: {key}")
@@ -157,8 +156,6 @@ class ConfigPublisher:
         bool
             True if new derived sensors were discovered, False otherwise
         """
-        from .utils import get_key_config_dict
-
         found_derived = False
         logger.debug(f"Checking for derived sensors with source: {source_key}")
         # Find all sensors that have this key as their source
