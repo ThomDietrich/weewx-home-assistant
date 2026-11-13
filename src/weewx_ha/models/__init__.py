@@ -1,12 +1,12 @@
-"""This module initializes the models package and imports the necessary configuration classes."""
+"""Configuration models for the extension.
 
-# isort: off
+Each model imports its collaborators from the module that defines them, so this
+file is a plain facade and the import order below carries no meaning.
+"""
 
-from .tls_config import TLSConfig
+from .extension_config import ExtensionConfig
 from .mqtt_config import MQTTConfig
 from .station_info import StationInfo
-from .extension_config import ExtensionConfig
-
-# isort: on
+from .tls_config import TLSConfig
 
 __all__ = ["ExtensionConfig", "MQTTConfig", "StationInfo", "TLSConfig"]

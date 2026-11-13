@@ -7,7 +7,8 @@ import logging
 import paho.mqtt.client as mqtt
 from weewx.units import to_std_system
 
-from . import ConfigPublisher, UnitSystem
+from .config_publisher import ConfigPublisher
+from .utils import UnitSystem
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ from typing import Optional
 # Third-Party Libraries
 from pydantic import BaseModel, ConfigDict, Field, Secret, field_validator
 
-from . import TLSConfig
+from .tls_config import TLSConfig
 
 
 class MQTTConfig(BaseModel):

@@ -18,9 +18,11 @@ from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
 import weewx.units  # type: ignore
 
-from . import ConfigPublisher, PacketPreprocessor, StatePublisher
+from .config_publisher import ConfigPublisher
 from .locale_loader import set_config_overrides, set_language
 from .models import ExtensionConfig, MQTTConfig
+from .preprocessor import PacketPreprocessor
+from .state_publisher import StatePublisher
 
 logger = logging.getLogger(__name__)
 

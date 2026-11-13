@@ -6,8 +6,9 @@ from typing import Any, Dict, Optional
 # Third-Party Libraries
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import MQTTConfig, StationInfo
-from .. import UnitSystem
+from ..utils import UnitSystem
+from .mqtt_config import MQTTConfig
+from .station_info import StationInfo
 
 
 class ExtensionConfig(BaseModel):
