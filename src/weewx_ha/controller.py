@@ -7,12 +7,13 @@ configuration data, and handles WeeWX loop packets.
 """
 
 # Standard Python Libraries
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 from typing import Any
 
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
+import weewx  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
 
@@ -28,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 # TODO Add command topics to control configuration settings
 
-# Constants
 EXTENSION_CONFIG_KEY = "HomeAssistant"
 THREAD_POOL_SIZE = 2
 
@@ -36,7 +36,7 @@ THREAD_POOL_SIZE = 2
 class Controller(StdService):
     """Controller class for the Home Assistant MQTT extension."""
 
-    def __init__(self, engine: StdEngine, config_dict: dict[Any, Any]):
+    def __init__(self, engine: StdEngine, config_dict: dict[str, Any]) -> None:
         """Initialize the controller.
 
         Args:
@@ -75,11 +75,9 @@ class Controller(StdService):
             f"Loaded extension configuration:\n{self.config.model_dump_json(indent=4)}"
         )
 
-        # Set language for localized YAML loading
         set_language(self.config.lang)
 
-        # Set config overrides if provided
-        overrides = {}
+        overrides: dict[str, dict[str, Any]] = {}
         if self.config.sensors:
             overrides["sensors"] = self.config.sensors
         if self.config.units:
@@ -93,13 +91,8 @@ class Controller(StdService):
             self.config.mqtt, self.availability_topic
         )
 
-        # Thread pool for managing tasks
         self.executor = ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
-
-        # Create packet preprocessor
         self.packet_preprocessor = PacketPreprocessor()
-
-        # Create a publishers
         self.config_publisher = ConfigPublisher(
             self.mqtt_client,
             self.availability_topic,
@@ -117,17 +110,23 @@ class Controller(StdService):
             self.config.unit_system,
         )
 
-        # Register the callbacks for loop packets and archive records
         self.bind(NEW_LOOP_PACKET, self.on_weewx_loop)
         self.bind(NEW_ARCHIVE_RECORD, self.on_weewx_archive)
 
-    def init_mqtt_client(self, mqtt_config: MQTTConfig, availability_topic: str):
+    def init_mqtt_client(
+        self, mqtt_config: MQTTConfig, availability_topic: str
+    ) -> mqtt.Client:
         """Initialize the MQTT client."""
         return build_client(mqtt_config, availability_topic, self)
 
     def on_mqtt_connect(
-        self, client: mqtt.Client, userdata, flags, reason_code, properties
-    ):
+        self,
+        client: mqtt.Client,
+        userdata: Any,
+        flags: mqtt.ConnectFlags,
+        reason_code: mqtt.ReasonCode,
+        properties: mqtt.Properties | None,
+    ) -> None:
         """Handle callback when the client attempts to connect to the server."""
         if self.config is None or self.availability_topic is None:
             return  # configuration was rejected; the extension is not loaded
@@ -144,17 +143,22 @@ class Controller(StdService):
             # so skip -- discovery then follows from the first packet.
             if self.config_publisher is not None and self.executor is not None:
                 future = self.executor.submit(self.config_publisher.publish_discovery)
-                future.add_done_callback(self.check_future_errors)
+                future.add_done_callback(self.report_future_error)
         else:
             logger.error(f"Failed to connect to MQTT broker, return code {reason_code}")
 
-    def on_mqtt_connect_fail(self, client: mqtt.Client, userdata):
+    def on_mqtt_connect_fail(self, client: mqtt.Client, userdata: Any) -> None:
         """Handle callback when the client fails to connect to the server."""
         logger.error("Failed to connect to MQTT broker")
 
     def on_mqtt_disconnect(
-        self, client: mqtt.Client, userdata, disconnect_flags, reason_code, properties
-    ):
+        self,
+        client: mqtt.Client,
+        userdata: Any,
+        disconnect_flags: mqtt.DisconnectFlags,
+        reason_code: mqtt.ReasonCode,
+        properties: mqtt.Properties | None,
+    ) -> None:
         """Handle callback for when the client disconnects from the server."""
         if reason_code != 0:
             logger.warning(
@@ -163,9 +167,13 @@ class Controller(StdService):
         else:
             logger.info("Disconnected from MQTT broker")
 
-    def on_mqtt_message(self, client: mqtt.Client, userdata, msg):
+    def on_mqtt_message(
+        self, client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage
+    ) -> None:
         """Handle callback for when a PUBLISH message is received from the server."""
-        logger.info(f"Received message on topic {msg.topic}: {msg.payload}")
+        # !r because the payload is bytes: without it this reads as b'online'
+        # anyway, and mypy flags the implicit conversion.
+        logger.info(f"Received message on topic {msg.topic}: {msg.payload!r}")
         if self.config is None or self.config_publisher is None:
             return  # configuration was rejected; the extension is not loaded
         # Resend config on homeassistant birth
@@ -175,28 +183,38 @@ class Controller(StdService):
             and self.executor is not None
         ):
             future = self.executor.submit(self.config_publisher.publish_discovery)
-            future.add_done_callback(self.check_future_errors)
+            future.add_done_callback(self.report_future_error)
 
     def on_mqtt_subscribe(
-        self, client: mqtt.Client, userdata, mid, reason_code_list, properties
-    ):
+        self,
+        client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[mqtt.ReasonCode],
+        properties: mqtt.Properties | None,
+    ) -> None:
         """Handle callback for when the broker responds to a subscribe request."""
         logger.info(f"Subscribed to topic, message ID: {mid}")
 
     def on_mqtt_unsubscribe(
-        self, client: mqtt.Client, userdata, mid, reason_code_list, properties
-    ):
+        self,
+        client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[mqtt.ReasonCode],
+        properties: mqtt.Properties | None,
+    ) -> None:
         """Handle callback for when the broker responds to an unsubscribe request."""
         logger.info(f"Unsubscribed from topic, message ID: {mid}")
 
-    def check_future_errors(self, future):
-        """Handle callback and check for exceptions in a Future."""
+    def report_future_error(self, future: Future[Any]) -> None:
+        """Report, rather than silently drop, whatever a worker task raised."""
         try:
             future.result()
         except Exception as e:
             logger.error(f"Error in future: {e}", exc_info=True)
 
-    def publish_packet(self, packet):
+    def publish_packet(self, packet: dict[str, Any]) -> None:
         """Preprocess a packet, register what is new in it, then publish it.
 
         The three steps run in this order in one task because they depend on
@@ -206,6 +224,12 @@ class Controller(StdService):
         the discovery configuration has to be on the broker before Home
         Assistant can accept that state.
         """
+        if (
+            self.packet_preprocessor is None
+            or self.config_publisher is None
+            or self.state_publisher is None
+        ):
+            return  # configuration was rejected; the extension is not loaded
         packet = self.packet_preprocessor.process_packet(packet)
         if self.config_publisher.process_packet(packet):
             logger.debug("New measurements found, publishing discovery")
@@ -219,21 +243,21 @@ class Controller(StdService):
         logger.warning(f"MQTT client is not connected, skipping {what}")
         return False
 
-    def _submit_packet(self, packet) -> None:
+    def _submit_packet(self, packet: dict[str, Any]) -> None:
         """Hand a packet to the worker pool and report anything it raises."""
         if self.executor is None:
             return  # configuration was rejected; the extension is not loaded
         future = self.executor.submit(self.publish_packet, packet)
-        future.add_done_callback(self.check_future_errors)
+        future.add_done_callback(self.report_future_error)
 
-    def on_weewx_loop(self, event):
+    def on_weewx_loop(self, event: weewx.Event) -> None:
         """Handle callback for WeeWX loop packets."""
         packet_keys = sorted(event.packet.keys())
         logger.debug(f"Received WeeWX loop packet with keys: {packet_keys}")
         if self._connected("packet processing"):
             self._submit_packet(event.packet.copy())
 
-    def on_weewx_archive(self, event):
+    def on_weewx_archive(self, event: weewx.Event) -> None:
         """Handle callback for WeeWX archive records.
 
         Archive records aggregate LOOP packets, so re-publishing them wholesale
@@ -259,14 +283,19 @@ class Controller(StdService):
         publishable.update(archive.derive_from_db(self.engine.db_binder, event.record))
         self._submit_packet(publishable)
 
-    def shutDown(self):
-        """Shutdown the controller.
+    def shutDown(self) -> None:
+        """Shut the controller down.
 
-        This method is overrides the method in StdService class and is called when the extension is unloaded.
+        Overrides the StdService method; WeeWX calls it when the extension is
+        unloaded.
         """
         logger.warning("Shutdown requested")
 
-        if self.mqtt_client is None or self.executor is None:
+        if (
+            self.mqtt_client is None
+            or self.executor is None
+            or self.availability_topic is None
+        ):
             # The configuration was rejected, so there is no broker
             # connection and no worker pool to wind down.
             logger.info("Extension was never loaded; nothing to shut down")
