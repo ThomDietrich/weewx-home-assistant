@@ -1,6 +1,7 @@
 """Defines the model for describing a weather station device."""
 
 # Standard Python Libraries
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Third-Party Libraries
@@ -26,11 +27,18 @@ class StationInfo(BaseModel):
     )
 
     @field_validator("time_zone", mode="before")
-    def validate_time_zone(cls, value):
-        """Validate the time_zone field to ensure it's a valid ZoneInfo object."""
+    @classmethod
+    def validate_time_zone(cls, value: Any) -> ZoneInfo:
+        """Coerce the configured time zone into a ZoneInfo, or reject it.
+
+        ``value`` is whatever the configuration carried, so a name that is not
+        a zone and a value that is not a name both have to come back as a
+        validation error naming the offending input -- with the original
+        exception chained, so the traceback still says what went wrong.
+        """
         if isinstance(value, ZoneInfo):
             return value
         try:
             return ZoneInfo(value)
-        except ZoneInfoNotFoundError:
-            raise ValueError(f"Invalid time zone: {value}")
+        except (ZoneInfoNotFoundError, TypeError, ValueError) as error:
+            raise ValueError(f"Invalid time zone: {value!r}") from error

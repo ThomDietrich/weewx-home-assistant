@@ -106,11 +106,15 @@ class UnitSystem(str, Enum):
     Casting to int returns the WeeWX unit system value.
     """
 
+    # Declared so the value stashed in __dict__ below is a visible attribute
+    # rather than one only __int__ knows about.
+    _weewx_value: int
+
     METRIC = ("METRIC", weewx.METRIC)
     METRICWX = ("METRICWX", weewx.METRICWX)
     US = ("US", weewx.US)
 
-    def __new__(cls, value: str, weewx_value: int):
+    def __new__(cls, value: str, weewx_value: int) -> "UnitSystem":
         """Create a new instance of the enumeration."""
         obj = str.__new__(cls, value)
         obj._value_ = value
@@ -119,11 +123,11 @@ class UnitSystem(str, Enum):
         )
         return obj
 
-    def __int__(self):
+    def __int__(self) -> int:
         """Return the WeeWX unit system value."""
         return self._weewx_value
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the unit system value."""
         return self.value
 
