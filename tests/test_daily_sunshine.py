@@ -1,6 +1,7 @@
 """Tests for the DB-derived archive aggregates (daySunshineDur, rolling rain, ET)."""
 
 # Standard Python Libraries
+import logging
 from types import SimpleNamespace
 
 # Third-Party Libraries
@@ -182,3 +183,41 @@ def test_day_extreme_none_when_empty():
     """A day with no rows yields neither a value nor a timestamp."""
     mgr = _FakeManager(extremes={})
     assert day_extreme(mgr, "archive", 0, 1000, highest=True) == (None, None)
+
+
+class _RainQueryFails(_FakeManager):
+    """A manager whose rolling-rain query is the only one that fails."""
+
+    def getSql(self, sql, args):
+        if "SUM(rain)" in sql:
+            raise RuntimeError("no such column: rain")
+        return super().getSql(sql, args)
+
+
+def test_one_failing_query_costs_only_its_own_aggregate(caplog):
+    """A broken rain query must not take the other aggregates down with it.
+
+    The rolling rain sums are computed first, so a single guard around the
+    whole set discarded every aggregate after them -- the day's ET, the rain
+    event and all three day extremes -- for one failing column.
+    """
+    dt = 1782826200
+    mgr = _RainQueryFails(
+        sums={"dayET": 0.1},
+        event_rows=[(dt - 500, 0.2)],
+        extremes={"outTemp_max": (25.0, dt - 3600)},
+    )
+
+    with caplog.at_level(logging.ERROR, logger="weewx_ha"):
+        derived = derive_from_db(_binder(mgr), {"dateTime": dt, "usUnits": 1})
+
+    assert "hourRain" not in derived, "the failing aggregate must be absent"
+    assert "rain24" not in derived
+    assert derived["dayET"] == pytest.approx(0.1), "ET survived the rain failure"
+    assert derived["eventRain"] == pytest.approx(0.2)
+    assert derived["dayMaxOutTemp"] == 25.0
+    # Both failures are reported, each naming the aggregate that could not be
+    # computed, so the gap in the published data is traceable.
+    failures = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any("hourRain" in m for m in failures), failures
+    assert any("rain24" in m for m in failures), failures

@@ -12,6 +12,7 @@ returns a value.
 """
 
 # Standard Python Libraries
+from collections.abc import Callable
 import logging
 from typing import Any
 
@@ -83,6 +84,20 @@ def select_publishable(record: dict[str, Any]) -> dict[str, Any] | None:
     ):
         return None
     return publishable
+
+
+def _attempt(label: str, compute: Callable[[], Any]) -> Any:
+    """Run one aggregate's query, logging and yielding None if it fails.
+
+    Each aggregate is attempted on its own, so a query that fails costs only
+    its own value and is named in the log. One guard around the whole set used
+    to discard every aggregate, including the ones already computed.
+    """
+    try:
+        return compute()
+    except Exception:
+        logger.error("Failed to compute the %s aggregate", label, exc_info=True)
+        return None
 
 
 def _sum(manager: Any, table: str, column: str, start: float, end: float) -> float:
@@ -172,9 +187,9 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
       - dayMaxWindGust: today's strongest wind gust, with its time
         (dayMaxWindGustTime).
     Rain/ET/temperature/wind values stay in the record's unit system;
-    to_std_system converts them downstream. A record without a timestamp
-    yields nothing, and a failure yields whatever was computed before it
-    (logged).
+    to_std_system converts them downstream. Every aggregate is attempted on its
+    own, so a failing query costs that one value and is logged by name; a
+    record without a timestamp, or an unreachable database, yields nothing.
     """
     derived: dict[str, Any] = {}
     dt = record.get("dateTime")
@@ -183,17 +198,34 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
     try:
         manager = db_binder.get_manager(ARCHIVE_DATA_BINDING)
         table = manager.table_name
-        day_start = startOfDay(dt)
+    except Exception:
+        logger.error(
+            "Cannot reach the archive database; publishing no DB-derived aggregates",
+            exc_info=True,
+        )
+        return derived
+    day_start = startOfDay(dt)
 
-        if record.get(DAILY_SUNSHINE_SOURCE) is not None:
-            derived[DAILY_SUNSHINE_KEY] = (
-                _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt) / HOUR_S
-            )
-        derived["hourRain"] = _sum(manager, table, "rain", dt - HOUR_S, dt)
-        derived["rain24"] = _sum(manager, table, "rain", dt - DAY_S, dt)
-        derived["dayET"] = _sum(manager, table, "ET", day_start, dt)
+    if record.get(DAILY_SUNSHINE_SOURCE) is not None:
+        seconds = _attempt(
+            DAILY_SUNSHINE_KEY,
+            lambda: _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt),
+        )
+        if seconds is not None:
+            derived[DAILY_SUNSHINE_KEY] = seconds / HOUR_S
 
-        event_total, event_start, event_end = compute_event_rain(manager, table, dt)
+    for key, column, start in (
+        ("hourRain", "rain", dt - HOUR_S),
+        ("rain24", "rain", dt - DAY_S),
+        ("dayET", "ET", day_start),
+    ):
+        total = _attempt(key, lambda: _sum(manager, table, column, start, dt))
+        if total is not None:
+            derived[key] = total
+
+    event = _attempt("eventRain", lambda: compute_event_rain(manager, table, dt))
+    if event is not None:
+        event_total, event_start, event_end = event
         derived["eventRain"] = event_total
         if event_start is not None and event_end is not None:
             # The first record of an event reports the rain of the interval
@@ -203,17 +235,22 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
             derived["eventRainEnd"] = event_end
             derived["eventRainDuration"] = (event_end - event_start + interval_s) / 60.0
 
-        for key, column, highest in (
-            ("dayMaxOutTemp", "outTemp", True),
-            ("dayMinOutTemp", "outTemp", False),
-            ("dayMaxWindGust", "windGust", True),
-        ):
-            value, when = day_extreme(
+    for key, column, highest in (
+        ("dayMaxOutTemp", "outTemp", True),
+        ("dayMinOutTemp", "outTemp", False),
+        ("dayMaxWindGust", "windGust", True),
+    ):
+        extreme = _attempt(
+            key,
+            lambda: day_extreme(
                 manager, table, day_start, dt, highest=highest, column=column
-            )
-            if value is not None:
-                derived[key] = value
-                derived[f"{key}Time"] = when
-    except Exception:
-        logger.error("Failed to compute DB-derived aggregates", exc_info=True)
+            ),
+        )
+        if extreme is None:
+            continue
+        value, when = extreme
+        if value is not None:
+            derived[key] = value
+            derived[f"{key}Time"] = when
+
     return derived
