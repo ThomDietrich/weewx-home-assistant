@@ -13,76 +13,24 @@ from typing import Any
 
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
-from weeutil.weeutil import startOfDay  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
-import weewx.units  # type: ignore
 
+from . import archive
 from .config_publisher import ConfigPublisher
 from .locale_loader import set_config_overrides, set_language
 from .models import ExtensionConfig, MQTTConfig
+from .mqtt_session import build_client
 from .preprocessor import PacketPreprocessor
 from .state_publisher import StatePublisher
 
 logger = logging.getLogger(__name__)
-
-# Register unit groups for the DB-derived rain/ET aggregates published from the
-# archive record, so to_std_system converts them (US inch -> METRICWX mm) and
-# getStandardUnitType yields the correct unit for discovery.
-for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
-    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
-for _obs in ("dayMaxOutTemp", "dayMinOutTemp"):
-    weewx.units.obs_group_dict.setdefault(_obs, "group_temperature")
-weewx.units.obs_group_dict.setdefault("dayMaxWindGust", "group_speed")
-# Rain-group observations we publish but do not derive: monthET and yearET come
-# from the driver's LOOP packets (the Vantage reports both) and weekRain from a
-# rain accumulator. WeeWX registers a unit group for none of them, so all three
-# skipped conversion. The ET pair was additionally mislabelled, because the
-# name-based guess in get_unit_metadata resolved "*ET" to the target system's
-# unit -- a silent factor 25.4 on US hardware -- while weekRain reached Home
-# Assistant with no unit at all. See felddy/weewx-home-assistant#62.
-for _obs in ("monthET", "weekRain", "yearET"):
-    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 # TODO Add command topics to control configuration settings
 
 # Constants
 EXTENSION_CONFIG_KEY = "HomeAssistant"
 THREAD_POOL_SIZE = 2
-
-# WeeWX archive records are aggregations (averages for intensive types, sums for
-# extensive types) of the LOOP packets over the archive interval. Re-publishing
-# them wholesale would overwrite the more recent real-time LOOP values in Home
-# Assistant. We therefore only publish observations that are exclusive to archive
-# records -- i.e. absent or always None in LOOP packets (e.g. ET and windrun, or
-# per-interval durations such as sunshineDur/rainDur added by services like
-# weewx-sunrainduration). See the WeeWX docs on LOOP vs ARCHIVE. Extend as needed.
-ARCHIVE_ONLY_MEASUREMENTS = frozenset({"ET", "windrun", "sunshineDur", "rainDur"})
-# Bookkeeping fields kept in the filtered archive record so downstream unit
-# conversion (to_std_system) still works. usUnits also has a sensor config, so it
-# rides along as a published state value -- harmless, as it is identical to the
-# value already published from LOOP packets.
-ARCHIVE_PASSTHROUGH_KEYS = frozenset({"usUnits"})
-
-# weewx-sunrainduration emits only the per-interval ``sunshineDur`` (seconds).
-# Home Assistant users typically want "sunshine hours today", so we derive a
-# cumulative daily total (in hours) from the WeeWX database and publish it as
-# ``daySunshineDur``. Reading the day's sum from the DB (rather than keeping an
-# in-memory counter) keeps the value correct across WeeWX restarts and resets
-# automatically at local midnight. group_deltatime is numerically identical
-# across unit systems, so to_std_system leaves the value untouched and the unit
-# is overridden to "h" in the sensor metadata (sensors.yaml: daySunshineDur).
-DAILY_SUNSHINE_SOURCE = "sunshineDur"
-DAILY_SUNSHINE_KEY = "daySunshineDur"
-ARCHIVE_DATA_BINDING = "wx_binding"
-
-# Rolling / cumulative aggregates derived from the archive DB (like
-# daySunshineDur) so Home Assistant needs no statistics/utility_meter helpers
-# that starve when the station reports no change during dry periods.
-HOUR_S = 3600
-DAY_S = 86400
-RAIN_EVENT_GAP_S = 6 * 3600  # >= 6 h dry separates rain events (MIT/IETD)
-RAIN_EVENT_LOOKBACK_S = 30 * 86400
 
 
 class Controller(StdService):
@@ -175,48 +123,7 @@ class Controller(StdService):
 
     def init_mqtt_client(self, mqtt_config: MQTTConfig, availability_topic: str):
         """Initialize the MQTT client."""
-        logger.debug(
-            "MQTT configuration: host=%s port=%s tls=%s user=%s",
-            mqtt_config.hostname,
-            mqtt_config.port,
-            mqtt_config.use_tls,
-            "<set>" if mqtt_config.username else "<none>",
-        )
-        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, mqtt_config.client_id)
-        client.logger = logger
-        # Set the callbacks
-        client.on_connect = self.on_mqtt_connect
-        client.on_message = self.on_mqtt_message
-        client.on_subscribe = self.on_mqtt_subscribe
-        client.on_unsubscribe = self.on_mqtt_unsubscribe
-        client.on_disconnect = self.on_mqtt_disconnect
-        client.on_connect_fail = self.on_mqtt_connect_fail
-        if mqtt_config.use_tls:
-            client.tls_set_context(mqtt_config.tls.context)
-        # No guard: MQTTConfig requires a username of at least one character
-        # and rejects an empty password, so there is no configuration that
-        # reaches here without credentials.
-        client.username_pw_set(
-            mqtt_config.username, mqtt_config.password.get_secret_value()
-        )
-        # Set the last will and testament. The will travels inside the CONNECT
-        # packet, so it has to be registered before the connection is made.
-        client.will_set(availability_topic, "offline", qos=1, retain=True)
-        # Hand the broker address to the client *before* starting the network
-        # thread. loop_start() runs loop_forever(retry_first_connection=True),
-        # which immediately calls reconnect() -- and reconnect() raises
-        # ValueError("Invalid host.") while no host is set. loop_forever only
-        # catches OSError, so that ValueError killed the network thread and the
-        # client never connected or reconnected afterwards. connect_async()
-        # records host/port/keep-alive and arms MQTT_CS_CONNECT_ASYNC, so the
-        # thread performs the connect itself and retries with exponential
-        # backoff for as long as the broker is unreachable (instead of raising
-        # out of WeeWX service construction on the very first attempt).
-        client.connect_async(
-            mqtt_config.hostname, mqtt_config.port, mqtt_config.keep_alive
-        )
-        client.loop_start()
-        return client
+        return build_client(mqtt_config, availability_topic, self)
 
     def on_mqtt_connect(
         self, client: mqtt.Client, userdata, flags, reason_code, properties
@@ -335,163 +242,29 @@ class Controller(StdService):
 
         Archive records aggregate LOOP packets, so re-publishing them wholesale
         would overwrite the more recent real-time LOOP values in Home Assistant.
-        Only observations exclusive to archive records (ARCHIVE_ONLY_MEASUREMENTS,
-        e.g. ET and windrun, which are absent/None in LOOP packets) are published
-        from here.
+        Only observations exclusive to archive records, plus the aggregates
+        ``archive`` derives from the database, are published from here.
         """
         record_keys = sorted(event.record.keys())
         logger.debug(f"Received WeeWX archive record with keys: {record_keys}")
-        filtered = {
-            key: value
-            for key, value in event.record.items()
-            if key in ARCHIVE_ONLY_MEASUREMENTS or key in ARCHIVE_PASSTHROUGH_KEYS
-        }
-        if (
-            not ARCHIVE_ONLY_MEASUREMENTS.intersection(filtered)
-            or "usUnits" not in filtered
-        ):
+        publishable = archive.select_publishable(event.record)
+        if publishable is None:
             logger.debug(
                 "No archive-exclusive measurements (with usUnits) in record; "
                 "nothing to publish"
             )
             return
         # Derive and append DB-based aggregates (daily sunshine, rolling rain, ET).
-        self._augment_db_derived(event.record, filtered)
+        publishable.update(archive.derive_from_db(self.engine.db_binder, event.record))
         if self.mqtt_client.is_connected():
             preprocessor_future = self.executor.submit(
-                self.packet_preprocessor.process_packet, filtered
+                self.packet_preprocessor.process_packet, publishable
             )
             preprocessor_future.add_done_callback(self.preprocessor_complete)
         else:
             logger.warning(
                 "MQTT client is not connected, skipping archive record processing"
             )
-
-    def _augment_db_derived(self, record: dict, filtered: dict) -> None:
-        """Add DB-derived aggregates to ``filtered`` for Home Assistant.
-
-        All values are summed from the WeeWX archive database (authoritative and
-        restart-safe), so Home Assistant needs no statistics/utility_meter helpers
-        that would starve when the station reports no change:
-          - daySunshineDur: cumulative daily sunshine, in hours (from sunshineDur).
-          - hourRain / rain24: rolling rainfall over the last 1 h / 24 h.
-          - dayET: cumulative evapotranspiration since local midnight.
-          - eventRain: rainfall of the most recent event (events separated by a
-            >= 6 h dry period, the Minimum Inter-event Time), with eventRainStart,
-            eventRainEnd (timestamps) and eventRainDuration (minutes).
-          - dayMaxOutTemp / dayMinOutTemp: today's high/low outdoor temperature,
-            each with the time it occurred (dayMaxOutTempTime / dayMinOutTempTime).
-          - dayMaxWindGust: today's strongest wind gust, with its time
-            (dayMaxWindGustTime).
-        Rain/ET/temperature/wind values stay in the record's unit system;
-        to_std_system converts them downstream. No-op on failure (logged).
-        """
-        dt = record.get("dateTime")
-        if dt is None:
-            return
-        try:
-            manager = self.engine.db_binder.get_manager(ARCHIVE_DATA_BINDING)
-            table = manager.table_name
-            day_start = startOfDay(dt)
-
-            def _sum(column: str, start: float) -> float:
-                row = manager.getSql(
-                    f"SELECT SUM({column}) FROM {table} "  # nosec B608
-                    "WHERE dateTime > ? AND dateTime <= ?",
-                    (start, dt),
-                )
-                return row[0] if row and row[0] is not None else 0.0
-
-            if record.get(DAILY_SUNSHINE_SOURCE) is not None:
-                filtered[DAILY_SUNSHINE_KEY] = (
-                    _sum(DAILY_SUNSHINE_SOURCE, day_start) / 3600.0
-                )
-            filtered["hourRain"] = _sum("rain", dt - HOUR_S)
-            filtered["rain24"] = _sum("rain", dt - DAY_S)
-            filtered["dayET"] = _sum("ET", day_start)
-            event_total, event_start, event_end = self._compute_event_rain(
-                manager, table, dt
-            )
-            filtered["eventRain"] = event_total
-            if event_start is not None:
-                interval_s = (record.get("interval") or 0) * 60
-                filtered["eventRainStart"] = event_start
-                filtered["eventRainEnd"] = event_end
-                filtered["eventRainDuration"] = (
-                    event_end - event_start + interval_s
-                ) / 60.0
-            hi_val, hi_time = self._day_extreme(manager, table, day_start, dt, True)
-            if hi_val is not None:
-                filtered["dayMaxOutTemp"] = hi_val
-                filtered["dayMaxOutTempTime"] = hi_time
-            lo_val, lo_time = self._day_extreme(manager, table, day_start, dt, False)
-            if lo_val is not None:
-                filtered["dayMinOutTemp"] = lo_val
-                filtered["dayMinOutTempTime"] = lo_time
-            gust_val, gust_time = self._day_extreme(
-                manager, table, day_start, dt, True, "windGust"
-            )
-            if gust_val is not None:
-                filtered["dayMaxWindGust"] = gust_val
-                filtered["dayMaxWindGustTime"] = gust_time
-        except Exception:
-            logger.error("Failed to compute DB-derived aggregates", exc_info=True)
-
-    @staticmethod
-    def _compute_event_rain(manager, table: str, dt: float):
-        """Return ``(total, start, end)`` of the most recent contiguous rain event.
-
-        ``total`` is the summed rainfall; ``start`` and ``end`` are the epoch
-        timestamps of the first and last measurable-rain records of that event.
-        Rain records separated by >= RAIN_EVENT_GAP_S (6 h) without measurable
-        rain belong to different events. Returns ``(0.0, None, None)`` when there
-        was no rain within the lookback window.
-        """
-        recs = [
-            (r[0], r[1])
-            for r in manager.genSql(
-                f"SELECT dateTime, rain FROM {table} "  # nosec B608
-                "WHERE rain > 0 AND dateTime > ? AND dateTime <= ? "
-                "ORDER BY dateTime ASC",
-                (dt - RAIN_EVENT_LOOKBACK_S, dt),
-            )
-            if r[1] is not None
-        ]
-        if not recs:
-            return 0.0, None, None
-        start = end = recs[-1][0]
-        total = recs[-1][1]
-        for i in range(len(recs) - 1, 0, -1):
-            if recs[i][0] - recs[i - 1][0] >= RAIN_EVENT_GAP_S:
-                break
-            total += recs[i - 1][1]
-            start = recs[i - 1][0]
-        return total, start, end
-
-    @staticmethod
-    def _day_extreme(
-        manager,
-        table: str,
-        day_start: float,
-        dt: float,
-        descending: bool,
-        column: str = "outTemp",
-    ):
-        """Return ``(value, time)`` of today's ``column`` extreme (max if descending).
-
-        ``time`` is the epoch timestamp of the record holding that extreme.
-        Returns ``(None, None)`` when the day has no usable ``column`` readings.
-        """
-        order = "DESC" if descending else "ASC"
-        row = manager.getSql(
-            f"SELECT {column}, dateTime FROM {table} "  # nosec B608
-            f"WHERE dateTime > ? AND dateTime <= ? AND {column} IS NOT NULL "
-            f"ORDER BY {column} {order}, dateTime ASC LIMIT 1",
-            (day_start, dt),
-        )
-        if row and row[0] is not None:
-            return row[0], row[1]
-        return None, None
 
     def shutDown(self):
         """Shutdown the controller.

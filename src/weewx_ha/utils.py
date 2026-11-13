@@ -11,6 +11,7 @@ from typing import Any
 
 # Third-Party Libraries
 import weewx  # type: ignore
+import weewx.units  # type: ignore
 from weewx.units import getStandardUnitType  # type: ignore
 
 from .locale_loader import (
@@ -133,6 +134,20 @@ class UnitSystem(str, Enum):
             if int(unit_system) == value:
                 return unit_system
         raise ValueError(f"Invalid unit system value: {value}")
+
+
+# Rain-group observations the catalogue publishes that WeeWX does not register:
+# monthET and yearET come from the driver's LOOP packets (the Vantage reports
+# both) and weekRain from a rain accumulator. WeeWX registers a unit group for
+# none of them, so all three skipped conversion. The ET pair was additionally
+# mislabelled, because the name-based guess in get_unit_metadata resolved "*ET"
+# to the target system's unit -- a silent factor 25.4 on US hardware -- while
+# weekRain reached Home Assistant with no unit at all. The registration lives
+# beside get_unit_metadata because that is the lookup it makes correct; the
+# aggregates this extension derives itself register in ``archive``.
+# See felddy/weewx-home-assistant#62.
+for _obs in ("monthET", "weekRain", "yearET"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 
 def get_unit_metadata(measurement_name: str, unit_system: UnitSystem) -> dict[str, Any]:
