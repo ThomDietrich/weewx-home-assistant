@@ -13,6 +13,7 @@ See https://github.com/felddy/weewx-home-assistant/issues/74.
 """
 
 # Standard Python Libraries
+import logging
 from unittest.mock import MagicMock, patch
 
 # Third-Party Libraries
@@ -90,3 +91,37 @@ def test_paho_rejects_reconnect_without_a_host():
     assert client.host == HOSTNAME
     assert client.port == PORT
     assert client.keepalive == KEEP_ALIVE
+
+
+def test_tls_is_configured_from_the_model_context():
+    """With TLS on, the client gets the context the TLSConfig built."""
+    config = _mqtt_config(use_tls=True)
+    controller = Controller.__new__(Controller)
+    with patch.object(mqtt, "Client", return_value=MagicMock()):
+        client = Controller.init_mqtt_client(controller, config, "weather/status")
+
+    client.tls_set_context.assert_called_once_with(config.tls.context)
+
+
+def test_tls_off_configures_no_context():
+    """A plaintext broker must not have a TLS context forced onto it."""
+    controller = Controller.__new__(Controller)
+    with patch.object(mqtt, "Client", return_value=MagicMock()):
+        client = Controller.init_mqtt_client(
+            controller, _mqtt_config(use_tls=False), "weather/status"
+        )
+
+    client.tls_set_context.assert_not_called()
+
+
+def test_credentials_are_handed_over_without_appearing_in_the_config_log(caplog):
+    """The debug line reports whether a username is set, never the password."""
+    with caplog.at_level(logging.DEBUG, logger="weewx_ha"):
+        controller = Controller.__new__(Controller)
+        with patch.object(mqtt, "Client", return_value=MagicMock()):
+            client = Controller.init_mqtt_client(
+                controller, _mqtt_config(), "weather/status"
+            )
+
+    client.username_pw_set.assert_called_once_with("weewx", "secret")
+    assert "secret" not in caplog.text

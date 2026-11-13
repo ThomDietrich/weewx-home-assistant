@@ -41,7 +41,7 @@ class TLSConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate_certificate_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Ensure that the certificate and key files are provided together."""
+        """Ensure a private key is never configured without its certificate."""
         if values.get("keyfile") and not values.get("certfile"):
             raise ValueError(
                 "If 'keyfile' is provided, 'certfile' must also be provided."
@@ -63,14 +63,30 @@ class TLSConfig(BaseModel):
             cadata=self.cadata,
         )
 
-        if self.certfile and self.keyfile:
-            #  Load client certificate and key files.
-            logger.debug("Loading client certificate and key files into SSL context.")
-            self._context.load_cert_chain(
-                certfile=self.certfile,
-                keyfile=self.keyfile,
-                password=(self.password.get_secret_value() if self.password else None),
-            )
+        if self.certfile:
+            # Keyed on certfile alone, not on both files: ssl takes the private
+            # key from the certificate file when keyfile is None, which is how
+            # a combined PEM is configured. Requiring both meant a lone
+            # certfile was dropped on the floor -- no client certificate was
+            # ever presented and nothing said so, so a station configured for
+            # mutual TLS silently connected without it.
+            logger.debug("Loading the client certificate into the SSL context.")
+            try:
+                self._context.load_cert_chain(
+                    certfile=self.certfile,
+                    keyfile=self.keyfile,
+                    password=(
+                        self.password.get_secret_value() if self.password else None
+                    ),
+                )
+            except (ssl.SSLError, OSError) as error:
+                # Names the file that could not be used, instead of letting an
+                # SSLError about "PEM lib" reach the log on its own.
+                raise ValueError(
+                    f"Could not load the client certificate {self.certfile!r}"
+                    + (f" with key {self.keyfile!r}" if self.keyfile else "")
+                    + f": {error}"
+                ) from error
 
     @property
     def context(self) -> ssl.SSLContext:
