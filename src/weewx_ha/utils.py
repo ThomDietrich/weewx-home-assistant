@@ -176,57 +176,76 @@ def get_unit_metadata(measurement_name: str, unit_system: UnitSystem) -> dict[st
     )
 
 
+# Abbreviated prefixes WeeWX uses, spelled out for the Home Assistant name.
+# The first match wins, as only one of them can begin a key.
+_PREFIX_EXPANSIONS = (
+    ("In ", "Indoor "),
+    ("Out ", "Outdoor "),
+    ("Tx ", "Transmit "),
+    ("Rx ", "Receive "),
+)
+
+# Keyword in the friendly name -> catalogue entry to borrow metadata from, for
+# keys the catalogue does not list. The order is the precedence: first hit wins.
+_GUESS_TEMPLATES = (
+    ("alarm", "extraAlarm"),
+    ("humidity", "outHumidity"),
+    ("pressure", "pressure"),
+    ("temperature", "outTemp"),
+)
+
+
+def _friendly_name(weewx_key: str) -> str:
+    """Turn a WeeWX key into a readable sensor name.
+
+    ``extraAlarm5`` becomes "Extra Alarm 5" and ``outTemp`` "Outdoor Temp".
+    """
+    # Space before digits (extraAlarm5 -> extraAlarm 5), then split camel case
+    # (extraAlarm 5 -> Extra Alarm 5).
+    spaced = re.sub(r"(\d+)", r" \1", weewx_key)
+    name = re.sub(r"(?<!^)(?=[A-Z])", " ", spaced).title()
+    for prefix, expansion in _PREFIX_EXPANSIONS:
+        if name.startswith(prefix):
+            return name.replace(prefix, expansion, 1)
+    return name
+
+
+def _guessed_key_config(name: str) -> dict[str, Any]:
+    """Borrow a catalogue entry's metadata for a key that has none of its own."""
+    key_config_dict = get_key_config_dict()
+    lowered = name.lower()
+    for keyword, template in _GUESS_TEMPLATES:
+        if keyword in lowered:
+            return deepcopy(key_config_dict[template])
+    return {"metadata": {}}
+
+
 def get_key_config(weewx_key: str) -> dict[str, Any]:
-    """Generate metadata for a WeeWX key."""
+    """Return the catalogue entry for a WeeWX key, or the best guess at one.
+
+    Three steps, in order: an exact catalogue match, the base entry of an
+    indexed observation (``extraTemp3`` from ``extraTemp``), and failing both,
+    a generated name with metadata borrowed from a similar sensor. The result
+    is always a fresh dict the caller may mutate; the catalogue it comes from
+    is shared and lazily cached.
+    """
     key_config_dict = get_key_config_dict()
 
-    # First, attempt an exact match for the key
     config = key_config_dict.get(weewx_key)
     if config:
-        # Return a deep copy so callers can mutate the result without
-        # corrupting the shared, lazily-cached KEY_CONFIG.
         return deepcopy(config)
 
-    # Next, remove numeric suffix to check for a base key match
     match = re.match(r"(.*?)(\d+)$", weewx_key)
     if match:
         base_key, suffix = match.groups()
-        # If the base key is found in the known keys mapping, construct the friendly name
         config = deepcopy(key_config_dict.get(base_key))
         if config:
             config["metadata"]["name"] = f"{config['metadata']['name']} {suffix}"
             return config
 
-    # If we still haven't found a match, generate a friendly name from the key
-    # Add space before digits (e.g., extraAlarm5 -> extraAlarm 5)
-    key_with_spaces = re.sub(r"(\d+)", r" \1", weewx_key)
-
-    # Split camel case (e.g., extraAlarm 5 -> Extra Alarm 5)
-    key_split = re.sub(r"(?<!^)(?=[A-Z])", " ", key_with_spaces).title()
-
-    # Handle "in", "out", "tx", and "rx" prefixes for indoor, outdoor, transmit, and receive
-    if key_split.startswith("In "):
-        key_split = key_split.replace("In ", "Indoor ", 1)
-    elif key_split.startswith("Out "):
-        key_split = key_split.replace("Out ", "Outdoor ", 1)
-    elif key_split.startswith("Tx "):
-        key_split = key_split.replace("Tx ", "Transmit ", 1)
-    elif key_split.startswith("Rx "):
-        key_split = key_split.replace("Rx ", "Receive ", 1)
-
-    # Guess at what the metadata should be based on the key
-    guess: dict[str, Any] = {"metadata": {}}
-    if "alarm" in key_split.lower():
-        guess = deepcopy(key_config_dict["extraAlarm"])
-    elif "humidity" in key_split.lower():
-        guess = deepcopy(key_config_dict["outHumidity"])
-    elif "pressure" in key_split.lower():
-        guess = deepcopy(key_config_dict["pressure"])
-    elif "temperature" in key_split.lower():
-        guess = deepcopy(key_config_dict["outTemp"])
-
-    guess["metadata"]["name"] = key_split
-
+    name = _friendly_name(weewx_key)
+    guess = _guessed_key_config(name)
+    guess["metadata"]["name"] = name
     logger.warning("Guessed metadata for key '%s': %s", weewx_key, guess)
     return guess
 
@@ -259,9 +278,11 @@ def _beaufort_label(force: float) -> str:
 _LAMBDA_REGISTRY: dict[str, Callable[[Any, Any], Any]] = {
     "beaufort_scale_map": lambda x, cp: _beaufort_label(x),
     "degrees_to_cardinal": lambda x, cp: degrees_to_cardinal(x),
-    "localtime_to_utc_timestamp": lambda x, cp: datetime.fromtimestamp(
-        x, tz=timezone.utc
-    ).timestamp(),
+    # Identity, spelled as one. WeeWX timestamps are already Unix epochs, so
+    # the datetime.fromtimestamp(x, utc).timestamp() this used to do returned
+    # x and only looked like a time-zone conversion. The name stays: it is part
+    # of the configuration surface, referenced by name from a sensors override.
+    "localtime_to_utc_timestamp": lambda x, cp: x,
     "localtime_to_iso": lambda x, cp: datetime.fromtimestamp(
         x, tz=timezone.utc
     ).isoformat(),
