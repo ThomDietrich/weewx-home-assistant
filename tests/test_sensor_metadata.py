@@ -14,24 +14,85 @@ from weewx_ha.locale_loader import load_sensors, set_config_overrides, set_langu
 
 # Home Assistant sensor + binary_sensor device classes (current as of 2026.6).
 VALID_DEVICE_CLASSES = {
-    "absolute_humidity", "apparent_power", "aqi", "atmospheric_pressure",
-    "battery", "carbon_dioxide", "carbon_monoxide", "cold", "conductivity",
-    "connectivity", "current", "data_rate", "data_size", "date", "distance",
-    "door", "duration", "energy", "energy_storage", "enum", "frequency", "gas",
-    "garage_door", "heat", "humidity", "illuminance", "irradiance", "lock",
-    "moisture", "monetary", "moving", "nitrogen_dioxide", "nitrogen_monoxide",
-    "nitrous_oxide", "occupancy", "opening", "ozone", "ph", "pm1", "pm10",
-    "pm25", "power", "power_factor", "precipitation", "precipitation_intensity",
-    "presence", "pressure", "problem", "reactive_power", "running", "safety",
-    "signal_strength", "smoke", "sound", "sound_pressure", "speed",
-    "sulphur_dioxide", "tamper", "temperature", "timestamp", "update",
-    "vibration", "volatile_organic_compounds",
-    "volatile_organic_compounds_parts", "voltage", "volume", "volume_flow_rate",
-    "volume_storage", "water", "weight", "wind_direction", "wind_speed",
+    "absolute_humidity",
+    "apparent_power",
+    "aqi",
+    "atmospheric_pressure",
+    "battery",
+    "carbon_dioxide",
+    "carbon_monoxide",
+    "cold",
+    "conductivity",
+    "connectivity",
+    "current",
+    "data_rate",
+    "data_size",
+    "date",
+    "distance",
+    "door",
+    "duration",
+    "energy",
+    "energy_storage",
+    "enum",
+    "frequency",
+    "gas",
+    "garage_door",
+    "heat",
+    "humidity",
+    "illuminance",
+    "irradiance",
+    "lock",
+    "moisture",
+    "monetary",
+    "moving",
+    "nitrogen_dioxide",
+    "nitrogen_monoxide",
+    "nitrous_oxide",
+    "occupancy",
+    "opening",
+    "ozone",
+    "ph",
+    "pm1",
+    "pm10",
+    "pm25",
+    "power",
+    "power_factor",
+    "precipitation",
+    "precipitation_intensity",
+    "presence",
+    "pressure",
+    "problem",
+    "reactive_power",
+    "running",
+    "safety",
+    "signal_strength",
+    "smoke",
+    "sound",
+    "sound_pressure",
+    "speed",
+    "sulphur_dioxide",
+    "tamper",
+    "temperature",
+    "timestamp",
+    "update",
+    "vibration",
+    "volatile_organic_compounds",
+    "volatile_organic_compounds_parts",
+    "voltage",
+    "volume",
+    "volume_flow_rate",
+    "volume_storage",
+    "water",
+    "weight",
+    "wind_direction",
+    "wind_speed",
     "window",
 }
 VALID_STATE_CLASSES = {
-    "measurement", "measurement_angle", "total", "total_increasing",
+    "measurement",
+    "measurement_angle",
+    "total",
+    "total_increasing",
 }
 VALID_ENTITY_CATEGORIES = {"diagnostic", "config"}
 
@@ -49,8 +110,11 @@ def _metadata(cfg):
 
 
 def test_no_duplicate_enabled_names(sensors):
-    """No two enabled sensors may share a display name (HA prefixes the device
-    name, so duplicates produce indistinguishable entities)."""
+    """No two enabled sensors may share a display name.
+
+    Home Assistant prefixes the device name, so duplicates would produce
+    indistinguishable entities.
+    """
     seen: dict[str, str] = {}
     dups: dict[str, list[str]] = {}
     for key, cfg in sensors.items():
@@ -66,6 +130,7 @@ def test_no_duplicate_enabled_names(sensors):
 
 
 def test_device_classes_valid(sensors):
+    """Every declared device_class is one Home Assistant recognizes."""
     bad = {
         key: _metadata(cfg).get("device_class")
         for key, cfg in sensors.items()
@@ -76,6 +141,7 @@ def test_device_classes_valid(sensors):
 
 
 def test_state_classes_valid(sensors):
+    """Every declared state_class is one Home Assistant recognizes."""
     bad = {
         key: _metadata(cfg).get("state_class")
         for key, cfg in sensors.items()
@@ -86,6 +152,7 @@ def test_state_classes_valid(sensors):
 
 
 def test_entity_categories_valid(sensors):
+    """Every declared entity_category is one Home Assistant recognizes."""
     bad = {
         key: _metadata(cfg).get("entity_category")
         for key, cfg in sensors.items()

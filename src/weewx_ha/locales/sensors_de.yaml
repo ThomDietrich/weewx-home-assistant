@@ -343,6 +343,10 @@ rain24:
   metadata:
     name: "Regen (24 h)"
 
+rainAlarm:
+  metadata:
+    name: "Regen-Alarm"
+
 rainDur:
   metadata:
     name: "Regendauer"

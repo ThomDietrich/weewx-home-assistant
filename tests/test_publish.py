@@ -4,25 +4,11 @@
 import json
 from unittest.mock import MagicMock
 
-# Third-Party Libraries
-import pytest
-
 # Geekpad Libraries
 from weewx_ha import ConfigPublisher, StatePublisher, UnitSystem
-from weewx_ha.locale_loader import set_config_overrides, set_language
 from weewx_ha.models import StationInfo
 
 METRICWX = int(UnitSystem.METRICWX)
-
-
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
 
 
 def _station():
@@ -43,9 +29,12 @@ def _config_publisher(client):
     )
 
 
-def test_discovery_is_retained_qos1_with_precision(reset_locale_state):
-    """Discovery is retained at QoS 1 and carries suggested_display_precision
-    (and no rounding value_template)."""
+def test_discovery_is_retained_qos1_with_precision():
+    """Discovery is retained at QoS 1 with suggested_display_precision.
+
+    It must carry no rounding value_template, so the raw value reaches the
+    database at full precision.
+    """
     client = MagicMock()
     cp = _config_publisher(client)
     cp.process_packet({"usUnits": METRICWX, "outTemp": 21.347})
@@ -64,7 +53,7 @@ def test_discovery_is_retained_qos1_with_precision(reset_locale_state):
     assert payload["origin"]["name"] == "weewx-home-assistant"
 
 
-def test_state_is_retained_qos1_and_raw(reset_locale_state):
+def test_state_is_retained_qos1_and_raw():
     """State is retained at QoS 1 and the raw, unrounded value reaches the topic."""
     client = MagicMock()
     cp = _config_publisher(client)

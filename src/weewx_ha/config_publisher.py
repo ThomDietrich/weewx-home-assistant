@@ -1,11 +1,9 @@
 """Processes loop packets and publish MQTT discovery configurations."""
 
 # Standard Python Libraries
-from collections import defaultdict
 import json
 import logging
 from typing import Any
-from zoneinfo import ZoneInfo
 
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
@@ -13,7 +11,7 @@ from weewx.units import to_std_system  # type: ignore
 
 from ._version import __version__
 from .models import StationInfo
-from .utils import UnitSystem, get_key_config, get_unit_metadata
+from .utils import UnitSystem, get_key_config, get_key_config_dict, get_unit_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +95,9 @@ class ConfigPublisher:
             }
         }
 
-        self.time_zone: ZoneInfo = station_info.time_zone
-
-        # Dictionary to hold measurement configuration and metadata
-        self.seen_measurements: dict[str, dict[str, Any]] = defaultdict(dict)
+        # Dictionary to hold measurement configuration and metadata. A plain
+        # dict, not a defaultdict: a bare lookup must not invent an entry.
+        self.seen_measurements: dict[str, dict[str, Any]] = {}
 
     def process_packet(self, packet: dict) -> bool:
         """
@@ -119,17 +116,26 @@ class ConfigPublisher:
         """
         logger.debug("Processing packet")
         found_new_measurements = False
-        if self.unit_system is not None:
-            packet = to_std_system(packet, int(self.unit_system))
+        packet = to_std_system(packet, int(self.unit_system))
         for key in packet.keys():
             if key not in self.seen_measurements:
                 logger.debug(f"Discovered new measurement: {key}")
                 found_new_measurements = True
-                self.seen_measurements[key] |= get_key_config(key)
-                # Unit metadata is underlaid with the metadata from the key
-                self.seen_measurements[key]["metadata"] = get_unit_metadata(
-                    key, self.unit_system
-                ) | self.seen_measurements[key].get("metadata", {})
+                config = dict(get_key_config(key))
+                # Binary sensors and keys the catalogue declares unit-less
+                # (enums, cardinal directions, timestamps) carry no unit, so
+                # skip the lookup and the missing-unit warning it would log
+                unitless = config.pop("unitless", False)
+                is_sensor = config.get("integration", "sensor") == "sensor"
+                if is_sensor and not unitless:
+                    # Unit metadata is underlaid with the metadata from the key
+                    config["metadata"] = get_unit_metadata(
+                        key, self.unit_system
+                    ) | config.get("metadata", {})
+                # Publish the entry only once it is complete: publish_discovery
+                # runs on the other worker thread and must never observe a
+                # configuration that still lacks its metadata.
+                self.seen_measurements[key] = config
 
                 # Check if there are any derived sensors that use this key as source
                 if self._discover_derived_sensors(key):
@@ -150,8 +156,6 @@ class ConfigPublisher:
         bool
             True if new derived sensors were discovered, False otherwise
         """
-        from .utils import get_key_config_dict
-
         found_derived = False
         logger.debug(f"Checking for derived sensors with source: {source_key}")
         # Find all sensors that have this key as their source
@@ -163,17 +167,16 @@ class ConfigPublisher:
                     logger.info(
                         f"Discovered derived measurement: {sensor_name} from source {source_key}"
                     )
-                    self.seen_measurements[sensor_name] = get_key_config(
-                        sensor_name
-                    ).copy()
-                    # Derived sensors typically don't need unit metadata since they have custom conversion
-                    # But if they don't have unit_of_measurement explicitly set, use None
-                    if "unit_of_measurement" not in self.seen_measurements[
-                        sensor_name
-                    ].get("metadata", {}):
-                        self.seen_measurements[sensor_name].setdefault("metadata", {})[
-                            "unit_of_measurement"
-                        ] = None
+                    config = dict(get_key_config(sensor_name))
+                    config.pop("unitless", None)
+                    # Derived sensors typically don't need unit metadata since
+                    # they have custom conversion, but an absent
+                    # unit_of_measurement is spelled out as None
+                    metadata = dict(config.get("metadata", {}))
+                    metadata.setdefault("unit_of_measurement", None)
+                    config["metadata"] = metadata
+                    # Built first, inserted once (see process_packet)
+                    self.seen_measurements[sensor_name] = config
                     found_derived = True
                 else:
                     logger.debug(
@@ -197,10 +200,11 @@ class ConfigPublisher:
         -------
         None
         """
-        logger.info(
-            f"Publishing {len(self.seen_measurements)} discovery configurations"
-        )
-        for sensor_name, config in self.seen_measurements.items():
+        # Iterate a snapshot: process_packet inserts from the other worker
+        # thread, which would otherwise raise RuntimeError mid-publish.
+        measurements = list(self.seen_measurements.items())
+        logger.info(f"Publishing {len(measurements)} discovery configurations")
+        for sensor_name, config in measurements:
             # Construct discovery topic
             integration = config.get("integration", "sensor")
             discovery_topic = f"{self.discovery_topic_prefix}/{integration}/{self.node_id}/{sensor_name}/config"

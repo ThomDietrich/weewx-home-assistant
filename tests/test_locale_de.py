@@ -5,32 +5,16 @@ from collections import Counter
 from pathlib import Path
 
 # Third-Party Libraries
-import pytest
 import yaml
 
 # Geekpad Libraries
 import weewx_ha
-from weewx_ha.locale_loader import (
-    load_enums,
-    load_sensors,
-    set_config_overrides,
-    set_language,
-)
+from weewx_ha.locale_loader import load_enums, load_sensors, set_language
 
 _LOCALES_DIR = Path(weewx_ha.__file__).parent / "locales"
 
 
-@pytest.fixture
-def reset_locale_state():
-    """Reset global locale state before and after each test."""
-    set_language(None)
-    set_config_overrides(None)
-    yield
-    set_language(None)
-    set_config_overrides(None)
-
-
-def test_de_translates_every_sensor(reset_locale_state):
+def test_de_translates_every_sensor():
     """Every base sensor must have an explicit German name entry.
 
     Checks the de YAML file directly (not the merged result) so that loanwords
@@ -51,7 +35,7 @@ def test_de_translates_every_sensor(reset_locale_state):
     assert not missing, f"Sensors missing from the German locale: {missing}"
 
 
-def test_de_has_no_duplicate_enabled_names(reset_locale_state):
+def test_de_has_no_duplicate_enabled_names():
     """German display names must stay unique among enabled sensors."""
     set_language("de")
     de = load_sensors()
@@ -64,7 +48,7 @@ def test_de_has_no_duplicate_enabled_names(reset_locale_state):
     assert not dups, f"Duplicate enabled German names: {dups}"
 
 
-def test_de_enums_localized(reset_locale_state):
+def test_de_enums_localized():
     """Cardinal directions and Beaufort scale are localized to German."""
     set_language("de")
     enums = load_enums()

@@ -1,13 +1,10 @@
 """Defines the model for describing a weather station device."""
 
 # Standard Python Libraries
-import logging
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Third-Party Libraries
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-logger = logging.getLogger(__name__)
 
 
 class StationInfo(BaseModel):
@@ -22,7 +19,9 @@ class StationInfo(BaseModel):
     )
     time_zone: ZoneInfo = Field(
         default_factory=lambda: ZoneInfo("UTC"),
-        description="Time zone of the weather station.",
+        description="Unused. WeeWX timestamps are Unix epochs and are "
+        "converted straight to UTC, so no station time zone is needed. Still "
+        "accepted so that existing configurations keep validating.",
         alias="timezone",
     )
 

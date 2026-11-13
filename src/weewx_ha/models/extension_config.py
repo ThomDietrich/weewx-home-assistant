@@ -1,16 +1,13 @@
 """Defines the model for validating and managing extension configuration."""
 
 # Standard Python Libraries
-import logging
 from typing import Any, Dict, Optional
 
 # Third-Party Libraries
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import MQTTConfig, StationInfo
 from .. import UnitSystem
-
-logger = logging.getLogger(__name__)
 
 
 class ExtensionConfig(BaseModel):
@@ -59,8 +56,8 @@ class ExtensionConfig(BaseModel):
     ) -> "ExtensionConfig":
         """Create an instance from a configuration dictionary."""
         extension_config = config_dict.get(key, {})
-        try:
-            return cls(**extension_config)
-        except ValidationError as e:
-            logger.error(f"Configuration validation error: {e}")
-            raise e
+        # The ValidationError is deliberately left to propagate untouched: the
+        # Controller logs it with the traceback and with what it means for the
+        # user ("extension will not be loaded"), and a second report here only
+        # buried that message under a duplicate.
+        return cls(**extension_config)

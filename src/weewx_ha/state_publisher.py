@@ -64,8 +64,7 @@ class StatePublisher:
         if self.settled_countdown > 0:
             # Wait for the system to settle before emitting warnings for missing configurations
             self.settled_countdown -= 1
-        if self.unit_system is not None:
-            packet = to_std_system(packet, int(self.unit_system))
+        packet = to_std_system(packet, int(self.unit_system))
         for key, value in packet.items():
             if value is None:
                 # Publishing None values causes Home Assistant templates to fail

@@ -20,6 +20,7 @@ eventRainStart:
     device_class: "timestamp"
     icon: "mdi:clock-start"
     name: "Event Rain Start Time"
+  unitless: true
 
 eventRainEnd:
   convert_lambda: "localtime_to_iso"
@@ -27,6 +28,7 @@ eventRainEnd:
     device_class: "timestamp"
     icon: "mdi:clock-end"
     name: "Event Rain End Time"
+  unitless: true
 
 eventRainDuration:
   metadata:
@@ -35,6 +37,7 @@ eventRainDuration:
     name: "Event Rain Duration"
     suggested_display_precision: 0
     unit_of_measurement: "min"
+  unitless: true
 
 THSW:
   metadata:
@@ -117,6 +120,7 @@ beaufort:
     name: "Beaufort Scale"
     options: "@beaufort_scale"
     unit_of_measurement: null
+  unitless: true
 
 cloudbase:
   metadata:
@@ -209,6 +213,7 @@ dayMaxOutTempTime:
     device_class: "timestamp"
     icon: "mdi:clock-outline"
     name: "Daily Maximum Temperature Time"
+  unitless: true
 
 dayMinOutTemp:
   metadata:
@@ -223,6 +228,7 @@ dayMinOutTempTime:
     device_class: "timestamp"
     icon: "mdi:clock-outline"
     name: "Daily Minimum Temperature Time"
+  unitless: true
 
 dayMaxWindGust:
   metadata:
@@ -237,6 +243,7 @@ dayMaxWindGustTime:
     device_class: "timestamp"
     icon: "mdi:clock-outline"
     name: "Daily Maximum Wind Gust Time"
+  unitless: true
 
 dewpoint:
   metadata:
@@ -272,11 +279,13 @@ forecastIcon:
   metadata:
     icon: "mdi:image-frame"
     name: "Forecast Icon"
+  unitless: true
 
 forecastRule:
   metadata:
     icon: "mdi:format-list-numbered"
     name: "Forecast Rule"
+  unitless: true
 
 growdeg:
   metadata:
@@ -300,6 +309,7 @@ gustdirCardinal:
     name: "Wind Gust Direction Cardinal (Vector)"
     options: "@cardinal_directions"
     unit_of_measurement: null
+  unitless: true
 
 hail:
   metadata:
@@ -592,6 +602,15 @@ rain24:
     name: "24-Hour Rainfall"
     state_class: "measurement"
 
+rainAlarm:
+  integration: "binary_sensor"
+  metadata:
+    enabled_by_default: false
+    icon: "mdi:alarm-light"
+    name: "Rain Alarm"
+    payload_off: 0
+    payload_on: 1
+
 rainDur:
   metadata:
     device_class: "duration"
@@ -705,6 +724,7 @@ sunrise:
     device_class: "timestamp"
     icon: "mdi:weather-sunset-up"
     name: "Sunrise"
+  unitless: true
 
 sunset:
   convert_lambda: "localtime_to_iso"
@@ -712,6 +732,7 @@ sunset:
     device_class: "timestamp"
     icon: "mdi:weather-sunset-down"
     name: "Sunset"
+  unitless: true
 
 sunshineDur:
   metadata:
@@ -743,6 +764,7 @@ usUnits:
     entity_category: "diagnostic"
     icon: "mdi:scale-balance"
     name: "Unit System"
+  unitless: true
 
 vecavg:
   metadata:
@@ -769,6 +791,7 @@ vecdirCardinal:
     name: "Vector Direction Cardinal"
     options: "@cardinal_directions"
     unit_of_measurement: null
+  unitless: true
 
 wind:
   metadata:
@@ -794,6 +817,7 @@ windDirCardinal:
     name: "Wind Direction Cardinal"
     options: "@cardinal_directions"
     unit_of_measurement: null
+  unitless: true
 
 windDir10:
   metadata:
@@ -811,6 +835,7 @@ windDir10Cardinal:
     name: "10-Minute Wind Direction Cardinal"
     options: "@cardinal_directions"
     unit_of_measurement: null
+  unitless: true
 
 windGust:
   metadata:
@@ -835,6 +860,7 @@ windGustDirCardinal:
     name: "Wind Gust Direction Cardinal"
     options: "@cardinal_directions"
     unit_of_measurement: null
+  unitless: true
 
 windSpeed:
   metadata:

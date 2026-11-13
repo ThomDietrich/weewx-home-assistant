@@ -6,6 +6,10 @@ cm:
   unit_of_measurement: "cm"
   suggested_display_precision: 2
 
+cm_per_hour:
+  unit_of_measurement: "cm/h"
+  suggested_display_precision: 2
+
 degree_C:
   unit_of_measurement: "°C"
   suggested_display_precision: 1
@@ -41,6 +45,10 @@ hour:
 inHg:
   unit_of_measurement: "inHg"
   suggested_display_precision: 2
+
+inHg_per_hour:
+  unit_of_measurement: "inHg/h"
+  suggested_display_precision: 3
 
 inch:
   unit_of_measurement: "in"
@@ -80,6 +88,10 @@ lux:
 
 mbar:
   unit_of_measurement: "mbar"
+  suggested_display_precision: 2
+
+mbar_per_hour:
+  unit_of_measurement: "mbar/h"
   suggested_display_precision: 2
 
 meter:

@@ -14,9 +14,9 @@ from typing import Any
 # Third-Party Libraries
 import paho.mqtt.client as mqtt
 from weeutil.weeutil import startOfDay  # type: ignore
-import weewx.units  # type: ignore
 from weewx import NEW_ARCHIVE_RECORD, NEW_LOOP_PACKET  # type: ignore
 from weewx.engine import StdEngine, StdService  # type: ignore
+import weewx.units  # type: ignore
 
 from . import ConfigPublisher, PacketPreprocessor, StatePublisher
 from .locale_loader import set_config_overrides, set_language
@@ -32,6 +32,15 @@ for _obs in ("hourRain", "rain24", "eventRain", "dayET"):
 for _obs in ("dayMaxOutTemp", "dayMinOutTemp"):
     weewx.units.obs_group_dict.setdefault(_obs, "group_temperature")
 weewx.units.obs_group_dict.setdefault("dayMaxWindGust", "group_speed")
+# Rain-group observations we publish but do not derive: monthET and yearET come
+# from the driver's LOOP packets (the Vantage reports both) and weekRain from a
+# rain accumulator. WeeWX registers a unit group for none of them, so all three
+# skipped conversion. The ET pair was additionally mislabelled, because the
+# name-based guess in get_unit_metadata resolved "*ET" to the target system's
+# unit -- a silent factor 25.4 on US hardware -- while weekRain reached Home
+# Assistant with no unit at all. See felddy/weewx-home-assistant#62.
+for _obs in ("monthET", "weekRain", "yearET"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 # TODO Add command topics to control configuration settings
 
@@ -70,7 +79,7 @@ ARCHIVE_DATA_BINDING = "wx_binding"
 # that starve when the station reports no change during dry periods.
 HOUR_S = 3600
 DAY_S = 86400
-RAIN_EVENT_GAP_S = 6 * 3600            # >= 6 h dry separates rain events (MIT/IETD)
+RAIN_EVENT_GAP_S = 6 * 3600  # >= 6 h dry separates rain events (MIT/IETD)
 RAIN_EVENT_LOOKBACK_S = 30 * 86400
 
 
@@ -88,6 +97,20 @@ class Controller(StdService):
         logger.debug(
             f"Initializing extension with configuration key {EXTENSION_CONFIG_KEY}"
         )
+        # Declare the disabled shape up front. WeeWX keeps a service whose
+        # constructor returned early and still calls shutDown on it when the
+        # engine stops, so an unusable configuration must leave the instance
+        # with every attribute the lifecycle methods read -- otherwise a config
+        # mistake resurfaces as an AttributeError long after its own report has
+        # scrolled past. Assigning here rather than in the except branch also
+        # keeps one declared type per attribute.
+        self.config: ExtensionConfig | None = None
+        self.availability_topic: str | None = None
+        self.mqtt_client: mqtt.Client | None = None
+        self.executor: ThreadPoolExecutor | None = None
+        self.packet_preprocessor: PacketPreprocessor | None = None
+        self.config_publisher: ConfigPublisher | None = None
+        self.state_publisher: StatePublisher | None = None
         try:
             self.config = ExtensionConfig.from_config_dict(
                 config_dict, EXTENSION_CONFIG_KEY
@@ -115,8 +138,10 @@ class Controller(StdService):
             overrides["enums"] = self.config.enums
         set_config_overrides(overrides if overrides else None)
 
-        self.availability_topic: str = f"{self.config.state_topic_prefix}/status"
-        self.mqtt_client: mqtt.Client = self.init_mqtt_client(self.config.mqtt)
+        self.availability_topic = f"{self.config.state_topic_prefix}/status"
+        self.mqtt_client = self.init_mqtt_client(
+            self.config.mqtt, self.availability_topic
+        )
 
         # Thread pool for managing tasks
         self.executor = ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
@@ -146,7 +171,7 @@ class Controller(StdService):
         self.bind(NEW_LOOP_PACKET, self.on_weewx_loop)
         self.bind(NEW_ARCHIVE_RECORD, self.on_weewx_archive)
 
-    def init_mqtt_client(self, mqtt_config: MQTTConfig):
+    def init_mqtt_client(self, mqtt_config: MQTTConfig, availability_topic: str):
         """Initialize the MQTT client."""
         logger.debug(
             "MQTT configuration: host=%s port=%s tls=%s user=%s",
@@ -163,22 +188,40 @@ class Controller(StdService):
         client.on_subscribe = self.on_mqtt_subscribe
         client.on_unsubscribe = self.on_mqtt_unsubscribe
         client.on_disconnect = self.on_mqtt_disconnect
+        client.on_connect_fail = self.on_mqtt_connect_fail
         if mqtt_config.use_tls:
             client.tls_set_context(mqtt_config.tls.context)
-        if mqtt_config.username and mqtt_config.password:
-            client.username_pw_set(
-                mqtt_config.username, mqtt_config.password.get_secret_value()
-            )
+        # No guard: MQTTConfig requires a username of at least one character
+        # and rejects an empty password, so there is no configuration that
+        # reaches here without credentials.
+        client.username_pw_set(
+            mqtt_config.username, mqtt_config.password.get_secret_value()
+        )
+        # Set the last will and testament. The will travels inside the CONNECT
+        # packet, so it has to be registered before the connection is made.
+        client.will_set(availability_topic, "offline", qos=1, retain=True)
+        # Hand the broker address to the client *before* starting the network
+        # thread. loop_start() runs loop_forever(retry_first_connection=True),
+        # which immediately calls reconnect() -- and reconnect() raises
+        # ValueError("Invalid host.") while no host is set. loop_forever only
+        # catches OSError, so that ValueError killed the network thread and the
+        # client never connected or reconnected afterwards. connect_async()
+        # records host/port/keep-alive and arms MQTT_CS_CONNECT_ASYNC, so the
+        # thread performs the connect itself and retries with exponential
+        # backoff for as long as the broker is unreachable (instead of raising
+        # out of WeeWX service construction on the very first attempt).
+        client.connect_async(
+            mqtt_config.hostname, mqtt_config.port, mqtt_config.keep_alive
+        )
         client.loop_start()
-        # Set the last will and testament
-        client.will_set(self.availability_topic, "offline", qos=1, retain=True)
-        client.connect(mqtt_config.hostname, mqtt_config.port, mqtt_config.keep_alive)
         return client
 
     def on_mqtt_connect(
         self, client: mqtt.Client, userdata, flags, reason_code, properties
     ):
         """Handle callback when the client attempts to connect to the server."""
+        if self.config is None or self.availability_topic is None:
+            return  # configuration was rejected; the extension is not loaded
         if reason_code == 0:
             logger.info("Connected to MQTT broker")
             logger.info("Publishing online availability")
@@ -188,9 +231,9 @@ class Controller(StdService):
             client.subscribe(f"{self.config.discovery_topic_prefix}/status", qos=1)
             # Re-publish discovery so entities survive broker/connection drops
             # (important for a remote MQTT link). On the very first connect the
-            # publishers may not be constructed yet and no measurements are known,
-            # so guard and skip -- discovery then follows from the first packet.
-            if getattr(self, "config_publisher", None) is not None:
+            # publishers are not constructed yet and no measurements are known,
+            # so skip -- discovery then follows from the first packet.
+            if self.config_publisher is not None and self.executor is not None:
                 future = self.executor.submit(self.config_publisher.publish_discovery)
                 future.add_done_callback(self.check_future_errors)
         else:
@@ -214,11 +257,13 @@ class Controller(StdService):
     def on_mqtt_message(self, client: mqtt.Client, userdata, msg):
         """Handle callback for when a PUBLISH message is received from the server."""
         logger.info(f"Received message on topic {msg.topic}: {msg.payload}")
+        if self.config is None or self.config_publisher is None:
+            return  # configuration was rejected; the extension is not loaded
         # Resend config on homeassistant birth
         if (
             msg.topic == f"{self.config.discovery_topic_prefix}/status"
             and msg.payload == b"online"
-            and getattr(self, "config_publisher", None) is not None
+            and self.executor is not None
         ):
             future = self.executor.submit(self.config_publisher.publish_discovery)
             future.add_done_callback(self.check_future_errors)
@@ -349,7 +394,7 @@ class Controller(StdService):
 
             def _sum(column: str, start: float) -> float:
                 row = manager.getSql(
-                    f"SELECT SUM({column}) FROM {table} "
+                    f"SELECT SUM({column}) FROM {table} "  # nosec B608
                     "WHERE dateTime > ? AND dateTime <= ?",
                     (start, dt),
                 )
@@ -403,7 +448,7 @@ class Controller(StdService):
         recs = [
             (r[0], r[1])
             for r in manager.genSql(
-                f"SELECT dateTime, rain FROM {table} "
+                f"SELECT dateTime, rain FROM {table} "  # nosec B608
                 "WHERE rain > 0 AND dateTime > ? AND dateTime <= ? "
                 "ORDER BY dateTime ASC",
                 (dt - RAIN_EVENT_LOOKBACK_S, dt),
@@ -437,7 +482,7 @@ class Controller(StdService):
         """
         order = "DESC" if descending else "ASC"
         row = manager.getSql(
-            f"SELECT {column}, dateTime FROM {table} "
+            f"SELECT {column}, dateTime FROM {table} "  # nosec B608
             f"WHERE dateTime > ? AND dateTime <= ? AND {column} IS NOT NULL "
             f"ORDER BY {column} {order}, dateTime ASC LIMIT 1",
             (day_start, dt),
@@ -453,6 +498,12 @@ class Controller(StdService):
         """
         logger.warning("Shutdown requested")
 
+        if self.mqtt_client is None or self.executor is None:
+            # The configuration was rejected, so there is no broker
+            # connection and no worker pool to wind down.
+            logger.info("Extension was never loaded; nothing to shut down")
+            return
+
         logger.info("Publishing offline availability")
         message_info = self.mqtt_client.publish(
             self.availability_topic, "offline", qos=1, retain=True
@@ -461,7 +512,9 @@ class Controller(StdService):
             message_info.wait_for_publish(timeout=10)
             logger.info("Offline availability publication complete")
         except Exception as e:
-            logger.error(f"Error while publishing offline availability: {e}")
+            logger.error(
+                f"Error while publishing offline availability: {e}", exc_info=True
+            )
         # Shutdown the executor, allowing threads to complete pending work
         self.executor.shutdown(wait=True)
         self.mqtt_client.disconnect()  # Also stops the MQTT client loop

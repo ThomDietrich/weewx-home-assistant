@@ -30,7 +30,8 @@ for availability messages.
 > no `statistics`/`utility_meter` helpers (which stall when the station reports no
 > change during long dry spells):
 >
-> - **Rolling rainfall** — `hourRain` / `rain24`, totals over the trailing 1 h / 24 h.
+> - **Rolling rainfall** — `hourRain` / `rain24`, totals over the trailing
+>   1 h / 24 h.
 > - **Rain event** — `eventRain`, the rainfall of the most recent shower (consecutive
 >   showers count as one event until a ≥ 6 h dry gap, the Minimum Inter-event Time),
 >   bracketed by `eventRainStart` / `eventRainEnd` / `eventRainDuration`.
@@ -78,6 +79,13 @@ later using [Python](https://www.python.org/) version `3.10` or later.
 ```shell
 pip install git+https://github.com/felddy/weewx-home-assistant@v1.0.0
 ```
+
+> [!IMPORTANT]
+> Install into the same Python that runs `weewxd`, not whichever `pip` comes
+> first on your `PATH`. WeeWX otherwise starts with
+> `ModuleNotFoundError: No module named 'weewx_ha'`. If WeeWX lives in a
+> virtual environment, activate it first, or install with that interpreter
+> directly: `/path/to/weewx/bin/python -m pip install git+...`.
 
 ## Configuration ##
 
@@ -139,8 +147,12 @@ Add a configuration section to the root of the `weewx.conf` file:
         manufacturer = <required>
         model = <required>
         name = <required>
-        timezone = <default: UTC>
+        timezone = <accepted, ignored>
 ```
+
+`timezone` is accepted but ignored: WeeWX timestamps are Unix epochs and are
+converted straight to UTC, so no station time zone is needed. The key is still
+accepted so that existing configurations keep validating.
 
 > [!NOTE]
 > Information about `TLS` options can be found in the Python documentation:

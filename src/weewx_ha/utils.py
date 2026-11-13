@@ -16,10 +16,13 @@ from .locale_loader import load_enums, load_sensors, load_units
 
 logger = logging.getLogger(__name__)
 
-# Global caches for lazy-loaded configuration
+# Global caches for lazy-loaded configuration. All four are built from the
+# locale_loader globals and dropped together by reset_caches below; declaring
+# them in one place is what keeps that pairing visible.
 _ENUM_MAPS: dict[str, dict[int, str]] | None = None
 _UNIT_METADATA: dict[str, dict[str, Any]] | None = None
 _SENSORS_YAML: dict[str, Any] | None = None
+_KEY_CONFIG: dict[str, Any] | None = None
 
 
 def _ensure_loaded() -> None:
@@ -31,6 +34,22 @@ def _ensure_loaded() -> None:
         _UNIT_METADATA = load_units()
     if _SENSORS_YAML is None:
         _SENSORS_YAML = load_sensors()
+
+
+def reset_caches() -> None:
+    """Drop every cache built from the current locale state.
+
+    The caches above are built once from the ``locale_loader`` globals and never
+    rebuilt, so changing the language or the config overrides afterwards has no
+    effect on anything already loaded. ``locale_loader``'s setters call this so
+    a locale change is a locale change, whenever it happens, instead of a silent
+    no-op that depends on whether anyone has read a sensor yet.
+    """
+    global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML, _KEY_CONFIG
+    _ENUM_MAPS = None
+    _UNIT_METADATA = None
+    _SENSORS_YAML = None
+    _KEY_CONFIG = None
 
 
 def get_enum_maps() -> dict[str, dict[int, str]]:
@@ -115,29 +134,19 @@ class UnitSystem(str, Enum):
 
 def get_unit_metadata(measurement_name: str, unit_system: UnitSystem) -> dict[str, Any]:
     """Generate metadata for a measurement unit based on the unit system."""
-    (target_unit, target_group) = getStandardUnitType(
-        int(unit_system), measurement_name
-    )
+    target_unit, _ = getStandardUnitType(int(unit_system), measurement_name)
 
+    # Guessing a unit from the measurement name used to paper over observations
+    # missing from obs_group_dict, which hid that their values were never
+    # converted. Those are registered in controller.py now, and keys that carry
+    # no unit at all declare "unitless" in the catalogue, so a miss here is a
+    # genuine gap worth reporting.
     if target_unit is None:
-        # take a guess at the unit based on the measurement name
-        if measurement_name == "usUnits":
-            pass  # Nothing to do for usUnits, this is a special case
-        elif measurement_name.endswith("ET"):
-            # Map other evapotranspiration measurements (dayET, monthET, yearET) to the same unit as ET
-            (target_unit, _) = getStandardUnitType(int(unit_system), "ET")
-        elif measurement_name in {"sunrise", "sunset", "stormStart"}:
-            (target_unit, _) = getStandardUnitType(int(unit_system), "dateTime")
-        else:
-            logger.warning(
-                "No unit found for measurement '%s' in unit system %s",
-                measurement_name,
-                unit_system,
-            )
-        if target_unit:
-            logger.info(
-                "Guessed unit '%s' for measurement %s", target_unit, measurement_name
-            )
+        logger.warning(
+            "No unit found for measurement '%s' in unit system %s",
+            measurement_name,
+            unit_system,
+        )
 
     return _get_unit_metadata_dict().get(
         target_unit,
@@ -258,10 +267,6 @@ def _build_key_config() -> dict[str, Any]:
                 del sensor_config["convert_lambda"]
 
     return config
-
-
-# Global cache for KEY_CONFIG
-_KEY_CONFIG: dict[str, Any] | None = None
 
 
 def get_key_config_dict() -> dict[str, Any]:
