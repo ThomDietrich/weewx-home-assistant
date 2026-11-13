@@ -187,3 +187,26 @@ def test_an_unrelated_message_republishes_nothing(controller):
     )
 
     assert _topics(controller.mqtt_client) == []
+
+
+def test_no_database_work_while_the_broker_is_unreachable(controller):
+    """Seven SQL queries for aggregates nobody can receive are seven too many.
+
+    The archive handler derived its aggregates first and asked about the
+    connection afterwards, so every archive interval spent without a broker
+    still ran the full set of queries and discarded the answers.
+    """
+    get_manager = MagicMock()
+    controller.engine = SimpleNamespace(
+        db_binder=SimpleNamespace(get_manager=get_manager)
+    )
+    controller.mqtt_client.is_connected.return_value = False
+
+    controller.on_weewx_archive(
+        SimpleNamespace(
+            record={"usUnits": weewx.US, "ET": 0.01, "dateTime": 1782826200}
+        )
+    )
+
+    get_manager.assert_not_called()
+    assert _topics(controller.mqtt_client) == []

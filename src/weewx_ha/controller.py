@@ -212,15 +212,26 @@ class Controller(StdService):
             self.config_publisher.publish_discovery()
         self.state_publisher.process_packet(packet)
 
+    def _connected(self, what: str) -> bool:
+        """Whether there is a broker to publish to, reporting it if not."""
+        if self.mqtt_client is not None and self.mqtt_client.is_connected():
+            return True
+        logger.warning(f"MQTT client is not connected, skipping {what}")
+        return False
+
+    def _submit_packet(self, packet) -> None:
+        """Hand a packet to the worker pool and report anything it raises."""
+        if self.executor is None:
+            return  # configuration was rejected; the extension is not loaded
+        future = self.executor.submit(self.publish_packet, packet)
+        future.add_done_callback(self.check_future_errors)
+
     def on_weewx_loop(self, event):
         """Handle callback for WeeWX loop packets."""
         packet_keys = sorted(event.packet.keys())
         logger.debug(f"Received WeeWX loop packet with keys: {packet_keys}")
-        if self.mqtt_client.is_connected():
-            future = self.executor.submit(self.publish_packet, event.packet.copy())
-            future.add_done_callback(self.check_future_errors)
-        else:
-            logger.warning("MQTT client is not connected, skipping packet processing")
+        if self._connected("packet processing"):
+            self._submit_packet(event.packet.copy())
 
     def on_weewx_archive(self, event):
         """Handle callback for WeeWX archive records.
@@ -232,6 +243,11 @@ class Controller(StdService):
         """
         record_keys = sorted(event.record.keys())
         logger.debug(f"Received WeeWX archive record with keys: {record_keys}")
+        # Asked before deriving anything: the aggregates below are seven SQL
+        # queries against the archive database, and with no broker to publish
+        # them to the answers would only be thrown away.
+        if not self._connected("archive record processing"):
+            return
         publishable = archive.select_publishable(event.record)
         if publishable is None:
             logger.debug(
@@ -241,13 +257,7 @@ class Controller(StdService):
             return
         # Derive and append DB-based aggregates (daily sunshine, rolling rain, ET).
         publishable.update(archive.derive_from_db(self.engine.db_binder, event.record))
-        if self.mqtt_client.is_connected():
-            future = self.executor.submit(self.publish_packet, publishable)
-            future.add_done_callback(self.check_future_errors)
-        else:
-            logger.warning(
-                "MQTT client is not connected, skipping archive record processing"
-            )
+        self._submit_packet(publishable)
 
     def shutDown(self):
         """Shutdown the controller.
