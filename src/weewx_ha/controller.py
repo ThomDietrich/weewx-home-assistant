@@ -196,44 +196,29 @@ class Controller(StdService):
         except Exception as e:
             logger.error(f"Error in future: {e}", exc_info=True)
 
-    def check_config_update(self, future):
-        """Check if a config update is needed after processing a loop packet."""
-        try:
-            # Get the result of the Future, which will be True or False
-            needs_publish: bool = future.result()
-        except Exception as e:
-            logger.error(f"Error while checking config update: {e}", exc_info=True)
-            return
-        if needs_publish:
-            logger.debug("New measurements found, submitting config update task")
-            future2 = self.executor.submit(self.config_publisher.publish_discovery)
-            future2.add_done_callback(self.check_future_errors)
+    def publish_packet(self, packet):
+        """Preprocess a packet, register what is new in it, then publish it.
 
-    def preprocessor_complete(self, future):
-        """Handle callback for when the preprocessor task is complete."""
-        try:
-            packet: dict = future.result()
-        except Exception as e:
-            logger.error(f"Error while pre-processing packet: {e}", exc_info=True)
-            return
-        state_future = self.executor.submit(self.state_publisher.process_packet, packet)
-        # Add callback to state publishing task
-        state_future.add_done_callback(self.check_future_errors)
-        config_future = self.executor.submit(
-            self.config_publisher.process_packet, packet
-        )
-        # Add callbacks to config processing task
-        config_future.add_done_callback(self.check_config_update)
+        The three steps run in this order in one task because they depend on
+        each other: StatePublisher resolves every key against
+        ConfigPublisher.seen_measurements and drops the ones it does not find,
+        so registration has to have happened before the state goes out, and
+        the discovery configuration has to be on the broker before Home
+        Assistant can accept that state.
+        """
+        packet = self.packet_preprocessor.process_packet(packet)
+        if self.config_publisher.process_packet(packet):
+            logger.debug("New measurements found, publishing discovery")
+            self.config_publisher.publish_discovery()
+        self.state_publisher.process_packet(packet)
 
     def on_weewx_loop(self, event):
         """Handle callback for WeeWX loop packets."""
         packet_keys = sorted(event.packet.keys())
         logger.debug(f"Received WeeWX loop packet with keys: {packet_keys}")
         if self.mqtt_client.is_connected():
-            preprocessor_future = self.executor.submit(
-                self.packet_preprocessor.process_packet, event.packet.copy()
-            )
-            preprocessor_future.add_done_callback(self.preprocessor_complete)
+            future = self.executor.submit(self.publish_packet, event.packet.copy())
+            future.add_done_callback(self.check_future_errors)
         else:
             logger.warning("MQTT client is not connected, skipping packet processing")
 
@@ -257,10 +242,8 @@ class Controller(StdService):
         # Derive and append DB-based aggregates (daily sunshine, rolling rain, ET).
         publishable.update(archive.derive_from_db(self.engine.db_binder, event.record))
         if self.mqtt_client.is_connected():
-            preprocessor_future = self.executor.submit(
-                self.packet_preprocessor.process_packet, publishable
-            )
-            preprocessor_future.add_done_callback(self.preprocessor_complete)
+            future = self.executor.submit(self.publish_packet, publishable)
+            future.add_done_callback(self.check_future_errors)
         else:
             logger.warning(
                 "MQTT client is not connected, skipping archive record processing"
