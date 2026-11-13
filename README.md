@@ -162,16 +162,6 @@ accepted so that existing configurations keep validating.
 > - `certfile`, `keyfile`, `password`:
 >   [ssl.SSLContext.load_cert_chain](https://docs.python.org/3/library/ssl.html#ssl.SSLContext.load_cert_chain)
 
-## Code Health ##
-
-<img src="scorecard.png" width="100%"
-  alt="Code health scorecard for this repository">
-
-Rendered by a code-health scan of this repository. Every dimension carries two
-numbers: its health score, and the strict score beside it, which counts
-accepted debt as still open. The gap between the two is the debt that has been
-deliberately deferred rather than fixed.
-
 ## Contributing ##
 
 We welcome contributions!  Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for

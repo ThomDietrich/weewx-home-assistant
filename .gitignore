@@ -16,6 +16,6 @@ build/
 ## Local tooling state ##
 # Code-health scanner state and its generated review prompts/results, and the
 # oh-my-claudecode session state. Local caches, not part of the extension.
-# The scorecard image the scanner renders is tracked -- the README embeds it.
 .desloppify/
 .omc/
+scorecard.png
