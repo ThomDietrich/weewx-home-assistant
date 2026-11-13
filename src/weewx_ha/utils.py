@@ -1,6 +1,7 @@
 """Utility functions and data."""
 
 # Standard Python Libraries
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime, timezone
 from enum import Enum
@@ -12,38 +13,32 @@ from typing import Any
 import weewx  # type: ignore
 from weewx.units import getStandardUnitType  # type: ignore
 
-from .locale_loader import load_enums, load_sensors, load_units
+from .locale_loader import (
+    load_enums,
+    load_sensors,
+    load_units,
+    register_cache_invalidator,
+)
 
 logger = logging.getLogger(__name__)
 
-# Global caches for lazy-loaded configuration. All four are built from the
-# locale_loader globals and dropped together by reset_caches below; declaring
-# them in one place is what keeps that pairing visible.
+# Caches over the locale data, each filled by its own getter on first use and
+# dropped as a set by reset_caches below. Declaring them together is what keeps
+# that pairing visible.
 _ENUM_MAPS: dict[str, dict[int, str]] | None = None
 _UNIT_METADATA: dict[str, dict[str, Any]] | None = None
 _SENSORS_YAML: dict[str, Any] | None = None
 _KEY_CONFIG: dict[str, Any] | None = None
 
 
-def _ensure_loaded() -> None:
-    """Ensure configuration is loaded (lazy loading after language is set)."""
-    global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML
-    if _ENUM_MAPS is None:
-        _ENUM_MAPS = load_enums()
-    if _UNIT_METADATA is None:
-        _UNIT_METADATA = load_units()
-    if _SENSORS_YAML is None:
-        _SENSORS_YAML = load_sensors()
-
-
 def reset_caches() -> None:
     """Drop every cache built from the current locale state.
 
-    The caches above are built once from the ``locale_loader`` globals and never
+    The caches above are built once from the ``locale_loader`` state and never
     rebuilt, so changing the language or the config overrides afterwards has no
-    effect on anything already loaded. ``locale_loader``'s setters call this so
-    a locale change is a locale change, whenever it happens, instead of a silent
-    no-op that depends on whether anyone has read a sensor yet.
+    effect on anything already loaded. ``locale_loader`` calls this when either
+    changes, so a locale change is a locale change whenever it happens, instead
+    of a silent no-op that depends on whether anyone has read a sensor yet.
     """
     global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML, _KEY_CONFIG
     _ENUM_MAPS = None
@@ -52,27 +47,35 @@ def reset_caches() -> None:
     _KEY_CONFIG = None
 
 
+# locale_loader owns the language and the overrides and calls back when either
+# is replaced. Registering, rather than being imported from there, is what makes
+# the dependency one-way: this module imports locale_loader and locale_loader
+# imports nothing back. A cache can only exist once this module has been
+# imported, and importing it runs this line, so no cache can outlive its state.
+register_cache_invalidator(reset_caches)
+
+
 def get_enum_maps() -> dict[str, dict[int, str]]:
-    """Get enum maps (lazy loaded)."""
-    _ensure_loaded()
+    """Get enum maps, loading them on first use."""
+    global _ENUM_MAPS
     if _ENUM_MAPS is None:
-        raise RuntimeError("Enum maps failed to load")
+        _ENUM_MAPS = load_enums()
     return _ENUM_MAPS
 
 
 def _get_unit_metadata_dict() -> dict[str, dict[str, Any]]:
-    """Get unit metadata dictionary (lazy loaded)."""
-    _ensure_loaded()
+    """Get unit metadata, loading it on first use."""
+    global _UNIT_METADATA
     if _UNIT_METADATA is None:
-        raise RuntimeError("Unit metadata failed to load")
+        _UNIT_METADATA = load_units()
     return _UNIT_METADATA
 
 
 def get_sensors_yaml() -> dict[str, Any]:
-    """Get sensors YAML configuration (lazy loaded)."""
-    _ensure_loaded()
+    """Get the sensor catalogue, loading it on first use."""
+    global _SENSORS_YAML
     if _SENSORS_YAML is None:
-        raise RuntimeError("Sensors YAML failed to load")
+        _SENSORS_YAML = load_sensors()
     return _SENSORS_YAML
 
 
@@ -229,8 +232,12 @@ def _beaufort_label(force: float) -> str:
     return scale[value]
 
 
-# Lambda function registry for convert_lambda references in YAML
-_LAMBDA_REGISTRY = {
+# Converters referenced by name from the ``convert_lambda`` field in
+# sensors.yaml. Every entry takes (value, config_publisher) so the registry has
+# one call shape; most ignore the second argument. The names are part of the
+# configuration surface -- users reference them from the ``sensors`` override --
+# so they cannot be renamed without breaking existing configurations.
+_LAMBDA_REGISTRY: dict[str, Callable[[Any, Any], Any]] = {
     "beaufort_scale_map": lambda x, cp: _beaufort_label(x),
     "degrees_to_cardinal": lambda x, cp: degrees_to_cardinal(x),
     "localtime_to_utc_timestamp": lambda x, cp: datetime.fromtimestamp(
