@@ -235,11 +235,24 @@ class ConfigPublisher:
             # once per newly seen key. If that one is dropped the entity never
             # appears in Home Assistant, and without this the only symptom is a
             # sensor that silently does not exist.
-            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            if info.rc == mqtt.MQTT_ERR_NO_CONN:
+                # Queued, not dropped. For QoS 1 paho leaves the message in its
+                # outgoing queue and only takes it out of the in-flight count,
+                # so the broker gets it on reconnect. Warning here would report
+                # every entity discovered during an outage as lost while all of
+                # them are on their way.
+                logger.debug(
+                    "Discovery configuration for %s is queued; the broker "
+                    "connection is down and it goes out on reconnect",
+                    sensor_name,
+                )
+            elif info.rc != mqtt.MQTT_ERR_SUCCESS:
+                # What is left is a real drop -- MQTT_ERR_QUEUE_SIZE, when the
+                # outgoing queue is full, above all.
                 logger.warning(
-                    "Discovery configuration for %s was not accepted by the "
-                    "client (return code %s); %s will not appear in Home "
-                    "Assistant until it is published again",
+                    "Discovery configuration for %s was rejected by the client "
+                    "(return code %s); %s will not appear in Home Assistant "
+                    "until it is published again",
                     sensor_name,
                     info.rc,
                     sensor_name,

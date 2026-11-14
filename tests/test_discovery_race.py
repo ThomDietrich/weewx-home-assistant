@@ -113,7 +113,7 @@ def test_a_rejected_discovery_publish_is_reported(publisher, caplog):
     """
     publisher.process_packet({"usUnits": METRICWX, "outTemp": 21.3})
     publisher.mqtt_client.publish.return_value = SimpleNamespace(
-        rc=mqtt.MQTT_ERR_NO_CONN
+        rc=mqtt.MQTT_ERR_QUEUE_SIZE
     )
 
     with caplog.at_level(logging.WARNING, logger="weewx_ha"):
@@ -121,3 +121,27 @@ def test_a_rejected_discovery_publish_is_reported(publisher, caplog):
 
     warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
     assert any("outTemp" in message for message in warnings), warnings
+
+
+def test_a_queued_discovery_publish_is_not_reported_as_lost(publisher, caplog):
+    """A publish made while the broker is away is queued, not dropped.
+
+    For QoS 1 paho keeps the message in its outgoing queue and sends it on
+    reconnect, so MQTT_ERR_NO_CONN is not a lost entity. Warning about it
+    would report every entity discovered during an outage as missing from
+    Home Assistant while all of them are still on their way.
+    """
+    publisher.process_packet({"usUnits": METRICWX, "outTemp": 21.3})
+    publisher.mqtt_client.publish.return_value = SimpleNamespace(
+        rc=mqtt.MQTT_ERR_NO_CONN
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="weewx_ha"):
+        publisher.publish_discovery()
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert warnings == [], warnings
+    assert any(
+        "outTemp" in r.getMessage() and "reconnect" in r.getMessage()
+        for r in caplog.records
+    ), [r.getMessage() for r in caplog.records]
