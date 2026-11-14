@@ -226,6 +226,21 @@ class ConfigPublisher:
             )
             # Publish the discovery configuration. Retained + QoS 1 so entities
             # survive broker restarts and a lossy/remote MQTT link.
-            self.mqtt_client.publish(
+            info = self.mqtt_client.publish(
                 discovery_topic, json.dumps(payload), qos=1, retain=True
             )
+            # The return code is worth checking here, unlike for state: a state
+            # value is re-published with every packet, so a lost one corrects
+            # itself seconds later, while a discovery configuration goes out
+            # once per newly seen key. If that one is dropped the entity never
+            # appears in Home Assistant, and without this the only symptom is a
+            # sensor that silently does not exist.
+            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+                logger.warning(
+                    "Discovery configuration for %s was not accepted by the "
+                    "client (return code %s); %s will not appear in Home "
+                    "Assistant until it is published again",
+                    sensor_name,
+                    info.rc,
+                    sensor_name,
+                )

@@ -14,9 +14,12 @@ https://github.com/felddy/weewx-home-assistant/issues/45.
 """
 
 # Standard Python Libraries
+import logging
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Third-Party Libraries
+import paho.mqtt.client as mqtt
 import pytest
 
 # Geekpad Libraries
@@ -98,3 +101,23 @@ def test_unknown_key_lookup_does_not_create_an_entry(publisher):
         publisher.seen_measurements["noSuchMeasurement"]
 
     assert set(publisher.seen_measurements) == before
+
+
+def test_a_rejected_discovery_publish_is_reported(publisher, caplog):
+    """A discovery configuration goes out once; losing it silently is a lost entity.
+
+    State values repeat with every packet, so a dropped one corrects itself.
+    A discovery payload is published once per newly seen key, and nothing used
+    to look at the return code -- a rejected publish left a sensor that simply
+    never appeared, with nothing in the log to explain it.
+    """
+    publisher.process_packet({"usUnits": METRICWX, "outTemp": 21.3})
+    publisher.mqtt_client.publish.return_value = SimpleNamespace(
+        rc=mqtt.MQTT_ERR_NO_CONN
+    )
+
+    with caplog.at_level(logging.WARNING, logger="weewx_ha"):
+        publisher.publish_discovery()
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("outTemp" in message for message in warnings), warnings
