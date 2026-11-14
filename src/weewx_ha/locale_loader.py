@@ -1,6 +1,7 @@
 """Loader for localized configuration from YAML files."""
 
 # Standard Python Libraries
+from collections.abc import Callable
 from copy import deepcopy
 import logging
 from pathlib import Path
@@ -16,6 +17,17 @@ _current_language: str | None = None
 
 # Global config overrides (can be set from configuration)
 _config_overrides: dict[str, Any] | None = None
+
+# Callbacks to run when the language or the overrides change. Anything that
+# caches data derived from the locale state registers here, which is what keeps
+# the dependency one-way: modules import this one, and this one calls back
+# without needing to know who they are. ``utils`` is the only registrant today.
+_cache_invalidators: list[Callable[[], None]] = []
+
+
+def register_cache_invalidator(invalidate: Callable[[], None]) -> None:
+    """Register a callback to run whenever the locale state is replaced."""
+    _cache_invalidators.append(invalidate)
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -68,14 +80,9 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
 
 
 def _invalidate_caches() -> None:
-    """Drop the utils caches built from the locale state being replaced.
-
-    Imported inside the function on purpose: ``utils`` imports this module for
-    its loaders, so a module-scope import back would be circular.
-    """
-    from .utils import reset_caches
-
-    reset_caches()
+    """Drop every cache built from the locale state being replaced."""
+    for invalidate in _cache_invalidators:
+        invalidate()
 
 
 def set_language(language: str | None) -> None:

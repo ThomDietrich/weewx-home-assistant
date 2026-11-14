@@ -1,6 +1,7 @@
 """Utility functions and data."""
 
 # Standard Python Libraries
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime, timezone
 from enum import Enum
@@ -10,40 +11,35 @@ from typing import Any
 
 # Third-Party Libraries
 import weewx  # type: ignore
+import weewx.units  # type: ignore
 from weewx.units import getStandardUnitType  # type: ignore
 
-from .locale_loader import load_enums, load_sensors, load_units
+from .locale_loader import (
+    load_enums,
+    load_sensors,
+    load_units,
+    register_cache_invalidator,
+)
 
 logger = logging.getLogger(__name__)
 
-# Global caches for lazy-loaded configuration. All four are built from the
-# locale_loader globals and dropped together by reset_caches below; declaring
-# them in one place is what keeps that pairing visible.
+# Caches over the locale data, each filled by its own getter on first use and
+# dropped as a set by reset_caches below. Declaring them together is what keeps
+# that pairing visible.
 _ENUM_MAPS: dict[str, dict[int, str]] | None = None
 _UNIT_METADATA: dict[str, dict[str, Any]] | None = None
 _SENSORS_YAML: dict[str, Any] | None = None
 _KEY_CONFIG: dict[str, Any] | None = None
 
 
-def _ensure_loaded() -> None:
-    """Ensure configuration is loaded (lazy loading after language is set)."""
-    global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML
-    if _ENUM_MAPS is None:
-        _ENUM_MAPS = load_enums()
-    if _UNIT_METADATA is None:
-        _UNIT_METADATA = load_units()
-    if _SENSORS_YAML is None:
-        _SENSORS_YAML = load_sensors()
-
-
 def reset_caches() -> None:
     """Drop every cache built from the current locale state.
 
-    The caches above are built once from the ``locale_loader`` globals and never
+    The caches above are built once from the ``locale_loader`` state and never
     rebuilt, so changing the language or the config overrides afterwards has no
-    effect on anything already loaded. ``locale_loader``'s setters call this so
-    a locale change is a locale change, whenever it happens, instead of a silent
-    no-op that depends on whether anyone has read a sensor yet.
+    effect on anything already loaded. ``locale_loader`` calls this when either
+    changes, so a locale change is a locale change whenever it happens, instead
+    of a silent no-op that depends on whether anyone has read a sensor yet.
     """
     global _ENUM_MAPS, _UNIT_METADATA, _SENSORS_YAML, _KEY_CONFIG
     _ENUM_MAPS = None
@@ -52,27 +48,35 @@ def reset_caches() -> None:
     _KEY_CONFIG = None
 
 
+# locale_loader owns the language and the overrides and calls back when either
+# is replaced. Registering, rather than being imported from there, is what makes
+# the dependency one-way: this module imports locale_loader and locale_loader
+# imports nothing back. A cache can only exist once this module has been
+# imported, and importing it runs this line, so no cache can outlive its state.
+register_cache_invalidator(reset_caches)
+
+
 def get_enum_maps() -> dict[str, dict[int, str]]:
-    """Get enum maps (lazy loaded)."""
-    _ensure_loaded()
+    """Get enum maps, loading them on first use."""
+    global _ENUM_MAPS
     if _ENUM_MAPS is None:
-        raise RuntimeError("Enum maps failed to load")
+        _ENUM_MAPS = load_enums()
     return _ENUM_MAPS
 
 
 def _get_unit_metadata_dict() -> dict[str, dict[str, Any]]:
-    """Get unit metadata dictionary (lazy loaded)."""
-    _ensure_loaded()
+    """Get unit metadata, loading it on first use."""
+    global _UNIT_METADATA
     if _UNIT_METADATA is None:
-        raise RuntimeError("Unit metadata failed to load")
+        _UNIT_METADATA = load_units()
     return _UNIT_METADATA
 
 
 def get_sensors_yaml() -> dict[str, Any]:
-    """Get sensors YAML configuration (lazy loaded)."""
-    _ensure_loaded()
+    """Get the sensor catalogue, loading it on first use."""
+    global _SENSORS_YAML
     if _SENSORS_YAML is None:
-        raise RuntimeError("Sensors YAML failed to load")
+        _SENSORS_YAML = load_sensors()
     return _SENSORS_YAML
 
 
@@ -102,11 +106,15 @@ class UnitSystem(str, Enum):
     Casting to int returns the WeeWX unit system value.
     """
 
+    # Declared so the value stashed in __dict__ below is a visible attribute
+    # rather than one only __int__ knows about.
+    _weewx_value: int
+
     METRIC = ("METRIC", weewx.METRIC)
     METRICWX = ("METRICWX", weewx.METRICWX)
     US = ("US", weewx.US)
 
-    def __new__(cls, value: str, weewx_value: int):
+    def __new__(cls, value: str, weewx_value: int) -> "UnitSystem":
         """Create a new instance of the enumeration."""
         obj = str.__new__(cls, value)
         obj._value_ = value
@@ -115,11 +123,11 @@ class UnitSystem(str, Enum):
         )
         return obj
 
-    def __int__(self):
+    def __int__(self) -> int:
         """Return the WeeWX unit system value."""
         return self._weewx_value
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the unit system value."""
         return self.value
 
@@ -130,6 +138,20 @@ class UnitSystem(str, Enum):
             if int(unit_system) == value:
                 return unit_system
         raise ValueError(f"Invalid unit system value: {value}")
+
+
+# Rain-group observations the catalogue publishes that WeeWX does not register:
+# monthET and yearET come from the driver's LOOP packets (the Vantage reports
+# both) and weekRain from a rain accumulator. WeeWX registers a unit group for
+# none of them, so all three skipped conversion. The ET pair was additionally
+# mislabelled, because the name-based guess in get_unit_metadata resolved "*ET"
+# to the target system's unit -- a silent factor 25.4 on US hardware -- while
+# weekRain reached Home Assistant with no unit at all. The registration lives
+# beside get_unit_metadata because that is the lookup it makes correct; the
+# aggregates this extension derives itself register in ``archive``.
+# See felddy/weewx-home-assistant#62.
+for _obs in ("monthET", "weekRain", "yearET"):
+    weewx.units.obs_group_dict.setdefault(_obs, "group_rain")
 
 
 def get_unit_metadata(measurement_name: str, unit_system: UnitSystem) -> dict[str, Any]:
@@ -154,57 +176,76 @@ def get_unit_metadata(measurement_name: str, unit_system: UnitSystem) -> dict[st
     )
 
 
+# Abbreviated prefixes WeeWX uses, spelled out for the Home Assistant name.
+# The first match wins, as only one of them can begin a key.
+_PREFIX_EXPANSIONS = (
+    ("In ", "Indoor "),
+    ("Out ", "Outdoor "),
+    ("Tx ", "Transmit "),
+    ("Rx ", "Receive "),
+)
+
+# Keyword in the friendly name -> catalogue entry to borrow metadata from, for
+# keys the catalogue does not list. The order is the precedence: first hit wins.
+_GUESS_TEMPLATES = (
+    ("alarm", "extraAlarm"),
+    ("humidity", "outHumidity"),
+    ("pressure", "pressure"),
+    ("temperature", "outTemp"),
+)
+
+
+def _friendly_name(weewx_key: str) -> str:
+    """Turn a WeeWX key into a readable sensor name.
+
+    ``extraAlarm5`` becomes "Extra Alarm 5" and ``outTemp`` "Outdoor Temp".
+    """
+    # Space before digits (extraAlarm5 -> extraAlarm 5), then split camel case
+    # (extraAlarm 5 -> Extra Alarm 5).
+    spaced = re.sub(r"(\d+)", r" \1", weewx_key)
+    name = re.sub(r"(?<!^)(?=[A-Z])", " ", spaced).title()
+    for prefix, expansion in _PREFIX_EXPANSIONS:
+        if name.startswith(prefix):
+            return name.replace(prefix, expansion, 1)
+    return name
+
+
+def _guessed_key_config(name: str) -> dict[str, Any]:
+    """Borrow a catalogue entry's metadata for a key that has none of its own."""
+    key_config_dict = get_key_config_dict()
+    lowered = name.lower()
+    for keyword, template in _GUESS_TEMPLATES:
+        if keyword in lowered:
+            return deepcopy(key_config_dict[template])
+    return {"metadata": {}}
+
+
 def get_key_config(weewx_key: str) -> dict[str, Any]:
-    """Generate metadata for a WeeWX key."""
+    """Return the catalogue entry for a WeeWX key, or the best guess at one.
+
+    Three steps, in order: an exact catalogue match, the base entry of an
+    indexed observation (``extraTemp3`` from ``extraTemp``), and failing both,
+    a generated name with metadata borrowed from a similar sensor. The result
+    is always a fresh dict the caller may mutate; the catalogue it comes from
+    is shared and lazily cached.
+    """
     key_config_dict = get_key_config_dict()
 
-    # First, attempt an exact match for the key
     config = key_config_dict.get(weewx_key)
     if config:
-        # Return a deep copy so callers can mutate the result without
-        # corrupting the shared, lazily-cached KEY_CONFIG.
         return deepcopy(config)
 
-    # Next, remove numeric suffix to check for a base key match
     match = re.match(r"(.*?)(\d+)$", weewx_key)
     if match:
         base_key, suffix = match.groups()
-        # If the base key is found in the known keys mapping, construct the friendly name
         config = deepcopy(key_config_dict.get(base_key))
         if config:
             config["metadata"]["name"] = f"{config['metadata']['name']} {suffix}"
             return config
 
-    # If we still haven't found a match, generate a friendly name from the key
-    # Add space before digits (e.g., extraAlarm5 -> extraAlarm 5)
-    key_with_spaces = re.sub(r"(\d+)", r" \1", weewx_key)
-
-    # Split camel case (e.g., extraAlarm 5 -> Extra Alarm 5)
-    key_split = re.sub(r"(?<!^)(?=[A-Z])", " ", key_with_spaces).title()
-
-    # Handle "in", "out", "tx", and "rx" prefixes for indoor, outdoor, transmit, and receive
-    if key_split.startswith("In "):
-        key_split = key_split.replace("In ", "Indoor ", 1)
-    elif key_split.startswith("Out "):
-        key_split = key_split.replace("Out ", "Outdoor ", 1)
-    elif key_split.startswith("Tx "):
-        key_split = key_split.replace("Tx ", "Transmit ", 1)
-    elif key_split.startswith("Rx "):
-        key_split = key_split.replace("Rx ", "Receive ", 1)
-
-    # Guess at what the metadata should be based on the key
-    guess: dict[str, Any] = {"metadata": {}}
-    if "alarm" in key_split.lower():
-        guess = deepcopy(key_config_dict["extraAlarm"])
-    elif "humidity" in key_split.lower():
-        guess = deepcopy(key_config_dict["outHumidity"])
-    elif "pressure" in key_split.lower():
-        guess = deepcopy(key_config_dict["pressure"])
-    elif "temperature" in key_split.lower():
-        guess = deepcopy(key_config_dict["outTemp"])
-
-    guess["metadata"]["name"] = key_split
-
+    name = _friendly_name(weewx_key)
+    guess = _guessed_key_config(name)
+    guess["metadata"]["name"] = name
     logger.warning("Guessed metadata for key '%s': %s", weewx_key, guess)
     return guess
 
@@ -229,13 +270,19 @@ def _beaufort_label(force: float) -> str:
     return scale[value]
 
 
-# Lambda function registry for convert_lambda references in YAML
-_LAMBDA_REGISTRY = {
+# Converters referenced by name from the ``convert_lambda`` field in
+# sensors.yaml. Every entry takes (value, config_publisher) so the registry has
+# one call shape; most ignore the second argument. The names are part of the
+# configuration surface -- users reference them from the ``sensors`` override --
+# so they cannot be renamed without breaking existing configurations.
+_LAMBDA_REGISTRY: dict[str, Callable[[Any, Any], Any]] = {
     "beaufort_scale_map": lambda x, cp: _beaufort_label(x),
     "degrees_to_cardinal": lambda x, cp: degrees_to_cardinal(x),
-    "localtime_to_utc_timestamp": lambda x, cp: datetime.fromtimestamp(
-        x, tz=timezone.utc
-    ).timestamp(),
+    # Identity, spelled as one. WeeWX timestamps are already Unix epochs, so
+    # the datetime.fromtimestamp(x, utc).timestamp() this used to do returned
+    # x and only looked like a time-zone conversion. The name stays: it is part
+    # of the configuration surface, referenced by name from a sensors override.
+    "localtime_to_utc_timestamp": lambda x, cp: x,
     "localtime_to_iso": lambda x, cp: datetime.fromtimestamp(
         x, tz=timezone.utc
     ).isoformat(),

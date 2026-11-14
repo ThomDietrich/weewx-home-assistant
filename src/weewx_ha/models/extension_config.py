@@ -1,13 +1,14 @@
 """Defines the model for validating and managing extension configuration."""
 
 # Standard Python Libraries
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Third-Party Libraries
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import MQTTConfig, StationInfo
-from .. import UnitSystem
+from ..utils import UnitSystem
+from .mqtt_config import MQTTConfig
+from .station_info import StationInfo
 
 
 class ExtensionConfig(BaseModel):
@@ -18,11 +19,11 @@ class ExtensionConfig(BaseModel):
     discovery_topic_prefix: str = Field(
         default="homeassistant", description="Prefix for the MQTT discovery topic"
     )
-    enums: Optional[Dict[str, Any]] = Field(
+    enums: dict[str, Any] | None = Field(
         default=None,
         description="Override enum mappings from enums.yaml",
     )
-    lang: Optional[str] = Field(
+    lang: str | None = Field(
         default=None,
         pattern=r"^[a-zA-Z]{2,3}(_[a-zA-Z0-9]{2,4})?$",
         description="Language code for localized sensor names (e.g., 'cs', 'en', 'de'). Falls back to English if not set.",
@@ -34,7 +35,7 @@ class ExtensionConfig(BaseModel):
         min_length=1,
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    sensors: Optional[Dict[str, Any]] = Field(
+    sensors: dict[str, Any] | None = Field(
         default=None,
         description="Override sensor configurations from sensors.yaml",
     )
@@ -45,14 +46,14 @@ class ExtensionConfig(BaseModel):
     unit_system: UnitSystem = Field(
         default=UnitSystem.METRICWX, description="Unit system for measurements"
     )
-    units: Optional[Dict[str, Any]] = Field(
+    units: dict[str, Any] | None = Field(
         default=None,
         description="Override unit metadata from units.yaml",
     )
 
     @classmethod
     def from_config_dict(
-        cls, config_dict: Dict[str, Any], key: str
+        cls, config_dict: dict[str, Any], key: str
     ) -> "ExtensionConfig":
         """Create an instance from a configuration dictionary."""
         extension_config = config_dict.get(key, {})
