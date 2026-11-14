@@ -16,8 +16,8 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["paho-mqtt>=2.0", "pydantic>=2.5", "PyYAML>=6.0", "setuptools"]
-description = "WeeWX Home Assistant Python library"
+dependencies = ["paho-mqtt>=2.0", "pydantic>=2.5", "PyYAML>=6.0"]
+description = "WeeWX extension publishing station data to Home Assistant over MQTT, with discovery and DB-derived aggregates"
 dynamic = ["version"]
 keywords = ["home-assistant", "mqtt", "weewx"]
 license = { file = "LICENSE" }
@@ -26,9 +26,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 [project.urls]
-homepage = "https://github.com/felddy"
-issues = "https://github.com/felddy/weewx-home-assistant/issues"
-source = "https://github.com/felddy/weewx-home-assistant"
+homepage = "https://github.com/ThomDietrich/weewx-home-assistant"
+issues = "https://github.com/ThomDietrich/weewx-home-assistant/issues"
+source = "https://github.com/ThomDietrich/weewx-home-assistant"
+upstream = "https://github.com/felddy/weewx-home-assistant"
 
 [project.optional-dependencies]
 test = [

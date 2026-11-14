@@ -42,11 +42,9 @@ for availability messages.
 > - **Daily extremes with their timestamp** — `dayMaxOutTemp` / `dayMinOutTemp` and
 >   `dayMaxWindGust`, each paired with the time it occurred (`…Time`).
 >
-> **Install this fork:**
-> `pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated`
->
 > **Staying current:** the work lives on the `consolidated` branch — re-run the
-> install command to update, and see the commit history for what changed.
+> install command under [Installation](#installation) to update, and see the
+> commit history for what changed.
 
 Key Features:
 
@@ -77,7 +75,7 @@ later using [Python](https://www.python.org/) version `3.10` or later.
 ## Installation ##
 
 ```shell
-pip install git+https://github.com/felddy/weewx-home-assistant@v1.0.0
+pip install git+https://github.com/ThomDietrich/weewx-home-assistant@consolidated
 ```
 
 > [!IMPORTANT]
