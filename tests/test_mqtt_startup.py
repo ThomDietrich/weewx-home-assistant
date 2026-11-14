@@ -23,6 +23,7 @@ import pytest
 # Geekpad Libraries
 from weewx_ha.controller import Controller
 from weewx_ha.models import MQTTConfig
+from weewx_ha.mqtt_session import build_client
 
 HOSTNAME = "broker.example.test"
 PORT = 1884
@@ -42,16 +43,23 @@ def _mqtt_config(**overrides) -> MQTTConfig:
     return MQTTConfig(**kwargs)
 
 
-@pytest.fixture
-def mqtt_client():
-    """Build an MQTT client through the controller, with paho mocked out."""
-    controller = Controller.__new__(Controller)
+def _handler() -> Controller:
+    """Return a stand-in handler; Controller is what satisfies MQTTHandler."""
+    return Controller.__new__(Controller)
+
+
+def _build(config: MQTTConfig) -> MagicMock:
+    """Build a client from ``config`` with paho mocked out."""
     with patch.object(mqtt, "Client", return_value=MagicMock()) as client_class:
-        client = Controller.init_mqtt_client(
-            controller, _mqtt_config(), "weather/status"
-        )
+        client = build_client(config, "weather/status", _handler())
     assert client is client_class.return_value
     return client
+
+
+@pytest.fixture
+def mqtt_client():
+    """Return a client built from a plaintext configuration."""
+    return _build(_mqtt_config())
 
 
 def test_connect_async_is_called_before_loop_start(mqtt_client):
@@ -96,20 +104,14 @@ def test_paho_rejects_reconnect_without_a_host():
 def test_tls_is_configured_from_the_model_context():
     """With TLS on, the client gets the context the TLSConfig built."""
     config = _mqtt_config(use_tls=True)
-    controller = Controller.__new__(Controller)
-    with patch.object(mqtt, "Client", return_value=MagicMock()):
-        client = Controller.init_mqtt_client(controller, config, "weather/status")
+    client = _build(config)
 
     client.tls_set_context.assert_called_once_with(config.tls.context)
 
 
 def test_tls_off_configures_no_context():
     """A plaintext broker must not have a TLS context forced onto it."""
-    controller = Controller.__new__(Controller)
-    with patch.object(mqtt, "Client", return_value=MagicMock()):
-        client = Controller.init_mqtt_client(
-            controller, _mqtt_config(use_tls=False), "weather/status"
-        )
+    client = _build(_mqtt_config(use_tls=False))
 
     client.tls_set_context.assert_not_called()
 
@@ -117,11 +119,18 @@ def test_tls_off_configures_no_context():
 def test_credentials_are_handed_over_without_appearing_in_the_config_log(caplog):
     """The debug line reports whether a username is set, never the password."""
     with caplog.at_level(logging.DEBUG, logger="weewx_ha"):
-        controller = Controller.__new__(Controller)
-        with patch.object(mqtt, "Client", return_value=MagicMock()):
-            client = Controller.init_mqtt_client(
-                controller, _mqtt_config(), "weather/status"
-            )
+        client = _build(_mqtt_config())
 
     client.username_pw_set.assert_called_once_with("weewx", "secret")
     assert "secret" not in caplog.text
+
+
+def test_controller_builds_its_client_through_build_client():
+    """The service does not wire a client itself; it delegates to mqtt_session."""
+    config = _mqtt_config()
+    controller = Controller.__new__(Controller)
+    with patch("weewx_ha.controller.build_client") as build:
+        client = Controller.init_mqtt_client(controller, config, "weather/status")
+
+    build.assert_called_once_with(config, "weather/status", controller)
+    assert client is build.return_value
