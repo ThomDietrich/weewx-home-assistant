@@ -13,6 +13,7 @@ returns a value.
 
 # Standard Python Libraries
 from collections.abc import Callable
+from functools import partial
 import logging
 from typing import Any
 
@@ -170,6 +171,93 @@ def day_extreme(
     return None, None
 
 
+def _daily_sunshine(
+    manager: Any, table: str, record: dict[str, Any], day_start: float, dt: float
+) -> dict[str, Any]:
+    """Return the cumulative daily sunshine, in hours, if the station reports it."""
+    if record.get(DAILY_SUNSHINE_SOURCE) is None:
+        return {}
+    seconds = _attempt(
+        DAILY_SUNSHINE_KEY,
+        lambda: _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt),
+    )
+    if seconds is None:
+        return {}
+    return {DAILY_SUNSHINE_KEY: seconds / HOUR_S}
+
+
+def _rolling_sums(
+    manager: Any, table: str, day_start: float, dt: float
+) -> dict[str, Any]:
+    """Return the rolling rain totals and the day's evapotranspiration."""
+    sums: dict[str, Any] = {}
+    for key, column, start in (
+        ("hourRain", "rain", dt - HOUR_S),
+        ("rain24", "rain", dt - DAY_S),
+        ("dayET", "ET", day_start),
+    ):
+        # partial rather than a lambda over the loop variables. A lambda
+        # would be correct here, because _attempt calls it inside this same
+        # iteration, but only for that reason; partial binds the values and
+        # does not depend on when it is called.
+        total = _attempt(key, partial(_sum, manager, table, column, start, dt))
+        if total is not None:
+            sums[key] = total
+    return sums
+
+
+def _rain_event(
+    manager: Any, table: str, record: dict[str, Any], dt: float
+) -> dict[str, Any]:
+    """Return the most recent rain event, bracketed by its start and end."""
+    event = _attempt("eventRain", lambda: compute_event_rain(manager, table, dt))
+    if event is None:
+        return {}
+    total, start, end = event
+    bracketed: dict[str, Any] = {"eventRain": total}
+    if start is None or end is None:
+        return bracketed
+    # The first record of an event reports the rain of the interval ending at
+    # its timestamp, so the event began one interval earlier.
+    interval_s = (record.get("interval") or 0) * 60
+    bracketed["eventRainStart"] = start
+    bracketed["eventRainEnd"] = end
+    bracketed["eventRainDuration"] = (end - start + interval_s) / 60.0
+    return bracketed
+
+
+def _daily_extremes(
+    manager: Any, table: str, day_start: float, dt: float
+) -> dict[str, Any]:
+    """Return today's temperature high and low and its strongest gust, each timed."""
+    extremes: dict[str, Any] = {}
+    for key, column, highest in (
+        ("dayMaxOutTemp", "outTemp", True),
+        ("dayMinOutTemp", "outTemp", False),
+        ("dayMaxWindGust", "windGust", True),
+    ):
+        # partial rather than a lambda, for the reason given in _rolling_sums.
+        extreme = _attempt(
+            key,
+            partial(
+                day_extreme,
+                manager,
+                table,
+                day_start,
+                dt,
+                highest=highest,
+                column=column,
+            ),
+        )
+        if extreme is None:
+            continue
+        value, when = extreme
+        if value is not None:
+            extremes[key] = value
+            extremes[f"{key}Time"] = when
+    return extremes
+
+
 def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
     """Return the aggregates for ``record`` read back out of the archive DB.
 
@@ -191,10 +279,9 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
     own, so a failing query costs that one value and is logged by name; a
     record without a timestamp, or an unreachable database, yields nothing.
     """
-    derived: dict[str, Any] = {}
     dt = record.get("dateTime")
     if dt is None:
-        return derived
+        return {}
     try:
         manager = db_binder.get_manager(ARCHIVE_DATA_BINDING)
         table = manager.table_name
@@ -203,54 +290,11 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
             "Cannot reach the archive database; publishing no DB-derived aggregates",
             exc_info=True,
         )
-        return derived
+        return {}
     day_start = startOfDay(dt)
-
-    if record.get(DAILY_SUNSHINE_SOURCE) is not None:
-        seconds = _attempt(
-            DAILY_SUNSHINE_KEY,
-            lambda: _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt),
-        )
-        if seconds is not None:
-            derived[DAILY_SUNSHINE_KEY] = seconds / HOUR_S
-
-    for key, column, start in (
-        ("hourRain", "rain", dt - HOUR_S),
-        ("rain24", "rain", dt - DAY_S),
-        ("dayET", "ET", day_start),
-    ):
-        total = _attempt(key, lambda: _sum(manager, table, column, start, dt))
-        if total is not None:
-            derived[key] = total
-
-    event = _attempt("eventRain", lambda: compute_event_rain(manager, table, dt))
-    if event is not None:
-        event_total, event_start, event_end = event
-        derived["eventRain"] = event_total
-        if event_start is not None and event_end is not None:
-            # The first record of an event reports the rain of the interval
-            # ending at its timestamp, so the event began one interval earlier.
-            interval_s = (record.get("interval") or 0) * 60
-            derived["eventRainStart"] = event_start
-            derived["eventRainEnd"] = event_end
-            derived["eventRainDuration"] = (event_end - event_start + interval_s) / 60.0
-
-    for key, column, highest in (
-        ("dayMaxOutTemp", "outTemp", True),
-        ("dayMinOutTemp", "outTemp", False),
-        ("dayMaxWindGust", "windGust", True),
-    ):
-        extreme = _attempt(
-            key,
-            lambda: day_extreme(
-                manager, table, day_start, dt, highest=highest, column=column
-            ),
-        )
-        if extreme is None:
-            continue
-        value, when = extreme
-        if value is not None:
-            derived[key] = value
-            derived[f"{key}Time"] = when
-
-    return derived
+    return {
+        **_daily_sunshine(manager, table, record, day_start, dt),
+        **_rolling_sums(manager, table, day_start, dt),
+        **_rain_event(manager, table, record, dt),
+        **_daily_extremes(manager, table, day_start, dt),
+    }
