@@ -126,6 +126,47 @@ def test_derive_from_db_without_a_timestamp():
     assert derive_from_db(_binder(_FakeManager()), {"ET": 0.0}) == {}
 
 
+def test_derive_from_db_with_an_unusable_timestamp(caplog):
+    """A dateTime that is not an epoch costs the aggregates, nothing more.
+
+    startOfDay goes through time.localtime, so a record carrying something
+    else raises there. The caller is a WeeWX event callback running on the
+    engine's own thread, where an escaping exception ends weewxd -- so this
+    has to come back as "no aggregates", logged, like an unreachable database.
+    """
+    record = {"dateTime": "not-an-epoch", "ET": 0.0, "usUnits": 1}
+
+    with caplog.at_level(logging.ERROR, logger="weewx_ha"):
+        assert derive_from_db(_binder(_FakeManager()), record) == {}
+
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+def test_a_malformed_interval_costs_only_the_rain_event(caplog):
+    """The event bracketing reads the record, so it fails like a query does.
+
+    eventRainDuration is computed from the record's own ``interval``. That
+    arithmetic belongs to the aggregate and is attempted with it, so a record
+    whose interval is not a number loses the rain event and keeps the rest.
+    """
+    dt = 1782826200
+    mgr = _FakeManager(
+        sums={"hourRain": 0.02, "rain24": 0.5, "dayET": 0.1},
+        event_rows=[(dt - 1000, 0.1), (dt - 500, 0.2)],
+    )
+    record = {"dateTime": dt, "ET": 0.0, "interval": "five", "usUnits": 1}
+
+    with caplog.at_level(logging.ERROR, logger="weewx_ha"):
+        derived = derive_from_db(_binder(mgr), record)
+
+    assert "eventRain" not in derived
+    assert derived["hourRain"] == pytest.approx(0.02)
+    assert derived["dayET"] == pytest.approx(0.1)
+    assert any("eventRain" in r.getMessage() for r in caplog.records), [
+        r.getMessage() for r in caplog.records
+    ]
+
+
 def test_event_rain_only_most_recent_event():
     """A dry gap of at least the MIT ends an event, excluding older rain."""
     dt = 1_000_000

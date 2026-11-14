@@ -177,13 +177,13 @@ def _daily_sunshine(
     """Return the cumulative daily sunshine, in hours, if the station reports it."""
     if record.get(DAILY_SUNSHINE_SOURCE) is None:
         return {}
-    seconds = _attempt(
+    hours = _attempt(
         DAILY_SUNSHINE_KEY,
-        lambda: _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt),
+        lambda: _sum(manager, table, DAILY_SUNSHINE_SOURCE, day_start, dt) / HOUR_S,
     )
-    if seconds is None:
+    if hours is None:
         return {}
-    return {DAILY_SUNSHINE_KEY: seconds / HOUR_S}
+    return {DAILY_SUNSHINE_KEY: hours}
 
 
 def _rolling_sums(
@@ -206,14 +206,11 @@ def _rolling_sums(
     return sums
 
 
-def _rain_event(
+def _bracketed_rain_event(
     manager: Any, table: str, record: dict[str, Any], dt: float
 ) -> dict[str, Any]:
-    """Return the most recent rain event, bracketed by its start and end."""
-    event = _attempt("eventRain", lambda: compute_event_rain(manager, table, dt))
-    if event is None:
-        return {}
-    total, start, end = event
+    """Return the most recent rain event and the fields derived from it."""
+    total, start, end = compute_event_rain(manager, table, dt)
     bracketed: dict[str, Any] = {"eventRain": total}
     if start is None or end is None:
         return bracketed
@@ -224,6 +221,21 @@ def _rain_event(
     bracketed["eventRainEnd"] = end
     bracketed["eventRainDuration"] = (end - start + interval_s) / 60.0
     return bracketed
+
+
+def _rain_event(
+    manager: Any, table: str, record: dict[str, Any], dt: float
+) -> dict[str, Any]:
+    """Return the most recent rain event, bracketed by its start and end.
+
+    The whole aggregate is attempted as one, the bracketing included: it reads
+    ``interval`` out of the record, so it can fail on a malformed record just
+    as the query can fail on the database, and neither may escape.
+    """
+    bracketed = _attempt(
+        "eventRain", partial(_bracketed_rain_event, manager, table, record, dt)
+    )
+    return bracketed if bracketed is not None else {}
 
 
 def _daily_extremes(
@@ -278,6 +290,11 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
     to_std_system converts them downstream. Every aggregate is attempted on its
     own, so a failing query costs that one value and is logged by name; a
     record without a timestamp, or an unreachable database, yields nothing.
+
+    Returns an empty dict rather than raising, whatever the record or the
+    database does. The caller runs on WeeWX's own thread, where an escaping
+    exception ends the engine, so losing the aggregates has to be the worst
+    outcome here.
     """
     dt = record.get("dateTime")
     if dt is None:
@@ -285,13 +302,19 @@ def derive_from_db(db_binder: Any, record: dict[str, Any]) -> dict[str, Any]:
     try:
         manager = db_binder.get_manager(ARCHIVE_DATA_BINDING)
         table = manager.table_name
+        # Inside the guard with the database handle, not after it: startOfDay
+        # goes through time.localtime/time.mktime, so a record whose dateTime
+        # is not a usable epoch raises here -- and the caller is a WeeWX event
+        # callback on the engine's own thread, where an escaping exception
+        # takes weewxd down instead of costing one interval's aggregates.
+        day_start = startOfDay(dt)
     except Exception:
         logger.error(
-            "Cannot reach the archive database; publishing no DB-derived aggregates",
+            "Cannot set up the archive aggregates (database unreachable or "
+            "unusable record timestamp); publishing none of them",
             exc_info=True,
         )
         return {}
-    day_start = startOfDay(dt)
     return {
         **_daily_sunshine(manager, table, record, day_start, dt),
         **_rolling_sums(manager, table, day_start, dt),
